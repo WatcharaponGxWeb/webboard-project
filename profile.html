@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — โปรไฟล์</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <i class="bi bi-layout-text-sidebar-reverse"></i> WebBoard
+  </a>
+  <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">
+    <i class="bi bi-moon-fill" id="darkIcon"></i>
+  </button>
+  <div class="navbar-actions" id="navbarActions"></div>
+</nav>
+
+<div class="layout">
+  <main class="main" style="max-width:720px; margin:0 auto; padding:1.5rem;">
+
+    <button onclick="window.location.href='index.html'" class="btn-ghost" style="margin-bottom:1rem; padding-left:0;">
+      <i class="bi bi-arrow-left"></i> กลับหน้าหลัก
+    </button>
+
+    <!-- Profile Card -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-body" style="padding:2rem; text-align:center;">
+        <div id="avatarLarge" style="width:80px; height:80px; border-radius:50%; background:var(--primary); color:#fff; font-size:2rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem;"></div>
+        <h2 id="profileUsername" style="font-size:1.3rem; font-weight:800; margin-bottom:0.25rem;"></h2>
+        <p id="profileEmail" style="font-size:14px; color:var(--text-muted); margin-bottom:0.5rem;"></p>
+        <span id="profileRole" class="category-badge" style="background:var(--primary-light); color:var(--primary); font-size:12px;"></span>
+        <div style="display:flex; justify-content:center; gap:2rem; margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border);">
+          <div style="text-align:center;">
+            <div id="statPosts" style="font-size:1.5rem; font-weight:800; color:var(--primary);">0</div>
+            <div style="font-size:12px; color:var(--text-muted);">โพสต์</div>
+          </div>
+          <div style="text-align:center;">
+            <div id="statLikes" style="font-size:1.5rem; font-weight:800; color:#e11d48;">0</div>
+            <div style="font-size:12px; color:var(--text-muted);">ถูกใจที่ได้รับ</div>
+          </div>
+          <div style="text-align:center;">
+            <div id="statJoined" style="font-size:1rem; font-weight:700; color:var(--text-muted);">-</div>
+            <div style="font-size:12px; color:var(--text-muted);">เข้าร่วมเมื่อ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Posts -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+      <h3 style="font-size:1rem; font-weight:700;"><i class="bi bi-grid-3x3-gap"></i> โพสต์ของฉัน</h3>
+      <button class="btn-primary-sm" onclick="window.location.href='create-post.html'">
+        <i class="bi bi-plus"></i> สร้างโพสต์ใหม่
+      </button>
+    </div>
+
+    <div id="myPostList">
+      <div class="loading-wrap"><div class="spinner"></div><span>กำลังโหลด...</span></div>
+    </div>
+
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+if (!api.isLoggedIn()) window.location.href = 'login.html';
+
+const user = api.getUser();
+
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<i class="bi bi-${type==='success'?'check-circle':type==='error'?'x-circle':'info-circle'}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function timeAgo(d) {
+  const diff = Date.now() - new Date(d).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'เมื่อกี้';
+  if (m < 60) return `${m} นาทีที่แล้ว`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ชั่วโมงที่แล้ว`;
+  const d2 = Math.floor(h / 24);
+  if (d2 < 30) return `${d2} วันที่แล้ว`;
+  return new Date(d).toLocaleDateString('th-TH');
+}
+
+function initials(n) { return n ? n.slice(0,2).toUpperCase() : '??'; }
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function stringToColor(str) {
+  const palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#dc2626','#db2777'];
+  let h = 0;
+  for (let i = 0; i < (str||'').length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
+}
+
+function renderNavbar() {
+  const el = document.getElementById('navbarActions');
+  el.innerHTML = `
+    <div style="position:relative;">
+      <div class="avatar-sm" onclick="toggleMenu()" id="avatarBtn" style="background:${stringToColor(user?.username)}">${initials(user?.username)}</div>
+      <div class="dropdown-menu-custom" id="userMenu" style="display:none;">
+        <div class="dropdown-item-custom" onclick="window.location.href='profile.html'"><i class="bi bi-person"></i> โปรไฟล์</div>
+        <div class="dropdown-item-custom danger" onclick="api.logout()"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</div>
+      </div>
+    </div>`;
+}
+
+function toggleMenu() {
+  const m = document.getElementById('userMenu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  const m = document.getElementById('userMenu');
+  if (m && !m.contains(e.target) && !document.getElementById('avatarBtn')?.contains(e.target)) m.style.display = 'none';
+});
+
+function renderProfile() {
+  document.getElementById('avatarLarge').textContent = initials(user?.username);
+  document.getElementById('avatarLarge').style.background = stringToColor(user?.username);
+  document.getElementById('profileUsername').textContent = user?.username || '-';
+  document.getElementById('profileEmail').textContent = user?.email || '-';
+  document.getElementById('profileRole').textContent = user?.role === 'admin' ? '👑 Admin' : '👤 สมาชิก';
+  document.title = `WebBoard — ${user?.username}`;
+}
+
+async function loadMyPosts() {
+  try {
+    const data = await api.get(`/posts?limit=100`);
+    const posts = (data.posts || []).filter(p => p.user_id === user?.id);
+
+    // Stats
+    document.getElementById('statPosts').textContent = posts.length;
+    const totalLikes = posts.reduce((sum, p) => sum + (p.like_count || p.likes || 0), 0);
+    document.getElementById('statLikes').textContent = totalLikes;
+    if (user?.created_at) {
+      document.getElementById('statJoined').textContent = new Date(user.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short' });
+    }
+
+    const el = document.getElementById('myPostList');
+    if (!posts.length) {
+      el.innerHTML = `<div class="empty-state"><i class="bi bi-inbox"></i><p>ยังไม่มีโพสต์ ลองสร้างโพสต์แรกของคุณ!</p></div>`;
+      return;
+    }
+
+    el.innerHTML = posts.map(post => `
+      <div class="card" style="margin-bottom:0.75rem; cursor:pointer;" onclick="window.location.href='post.html?id=${post.id}'">
+        <div class="card-body" style="padding:1.25rem;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.5rem; flex-wrap:wrap;">
+            <span style="font-size:12px; color:var(--text-muted);">${timeAgo(post.created_at)}</span>
+            ${post.category_name ? `<span class="category-badge" style="background:${post.category_color || '#6366f1'}20; color:${post.category_color || '#6366f1'};">${post.category_name}</span>` : ''}
+            <div style="margin-left:auto; display:flex; gap:6px;">
+              <button class="btn-ghost" onclick="event.stopPropagation(); window.location.href='create-post.html?id=${post.id}'" style="padding:4px 10px; font-size:12px;"><i class="bi bi-pencil"></i></button>
+              <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})" style="padding:4px 10px; font-size:12px;"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          ${post.image ? `<img src="https://webboard-project-production.up.railway.app${post.image}" style="width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-bottom:0.5rem;">` : ''}
+          <h3 style="font-size:15px; font-weight:700; margin-bottom:0.35rem;">${escHtml(post.title)}</h3>
+          <p style="font-size:13px; color:var(--text-muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escHtml(post.content)}</p>
+          <div style="display:flex; gap:1rem; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+            <span class="post-stat"><i class="bi bi-heart"></i> ${post.like_count || post.likes || 0}</span>
+            <span class="post-stat"><i class="bi bi-chat"></i> ${post.comment_count || 0}</span>
+            <span class="post-stat"><i class="bi bi-eye"></i> ${post.views || 0}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('myPostList').innerHTML = `<div class="alert alert-danger">โหลดโพสต์ไม่สำเร็จ</div>`;
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm('ต้องการลบโพสต์นี้?')) return;
+  try {
+    await api.delete(`/posts/${postId}`);
+    toast('ลบโพสต์สำเร็จ', 'success');
+    loadMyPosts();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// Dark Mode
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('darkIcon').className = isDark ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', saved);
+  if (saved === 'dark') { const ic = document.getElementById('darkIcon'); if(ic) ic.className = 'bi bi-sun-fill'; }
+})();
+
+renderNavbar();
+renderProfile();
+loadMyPosts();
+</script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — Admin Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script>
+    // Apply dark mode BEFORE render to prevent flash
+    (function() {
+      const dark = localStorage.getItem('darkMode') === 'true';
+      if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <i class="bi bi-layout-text-sidebar-reverse"></i> WebBoard
+  </a>
+  <div class="navbar-actions">
+    <button class="btn-ghost" id="darkToggle" onclick="toggleDark()" title="เปลี่ยนธีม">
+      <i class="bi bi-moon-stars-fill" id="darkIcon"></i>
+    </button>
+    <a href="index.html" class="btn-ghost"><i class="bi bi-house"></i> หน้าหลัก</a>
+    <button class="btn-ghost" onclick="api.logout()"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</button>
+  </div>
+</nav>
+
+<div style="max-width:960px; margin:0 auto; padding:1.5rem;">
+
+  <!-- Header -->
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:1.5rem;">
+    <div style="width:40px;height:40px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+      <i class="bi bi-shield-check" style="color:#fff;font-size:18px;"></i>
+    </div>
+    <div>
+      <h1 style="font-size:1.2rem; font-weight:800;">Admin Panel</h1>
+      <p style="font-size:13px; color:var(--text-muted);">จัดการโพสต์และสมาชิก</p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:1.5rem;">
+    <div style="background:var(--surface2); border-radius:var(--radius); padding:1rem; text-align:center;">
+      <i class="bi bi-file-text" style="font-size:1.5rem; color:var(--primary);"></i>
+      <p id="statPosts" style="font-size:1.5rem; font-weight:800; margin:4px 0;">—</p>
+      <p style="font-size:12px; color:var(--text-muted);">โพสต์ทั้งหมด</p>
+    </div>
+    <div style="background:var(--surface2); border-radius:var(--radius); padding:1rem; text-align:center;">
+      <i class="bi bi-people" style="font-size:1.5rem; color:#7c3aed;"></i>
+      <p id="statUsers" style="font-size:1.5rem; font-weight:800; margin:4px 0;">—</p>
+      <p style="font-size:12px; color:var(--text-muted);">สมาชิกทั้งหมด</p>
+    </div>
+    <div style="background:var(--surface2); border-radius:var(--radius); padding:1rem; text-align:center;">
+      <i class="bi bi-chat-dots" style="font-size:1.5rem; color:#059669;"></i>
+      <p id="statComments" style="font-size:1.5rem; font-weight:800; margin:4px 0;">—</p>
+      <p style="font-size:12px; color:var(--text-muted);">ความคิดเห็น</p>
+    </div>
+    <div style="background:var(--surface2); border-radius:var(--radius); padding:1rem; text-align:center;">
+      <i class="bi bi-heart" style="font-size:1.5rem; color:#e11d48;"></i>
+      <p id="statLikes" style="font-size:1.5rem; font-weight:800; margin:4px 0;">—</p>
+      <p style="font-size:12px; color:var(--text-muted);">Likes ทั้งหมด</p>
+    </div>
+    <div style="background:var(--surface2); border-radius:var(--radius); padding:1rem; text-align:center; cursor:pointer;" onclick="switchTab('reports')">
+      <i class="bi bi-flag" style="font-size:1.5rem; color:#f59e0b;"></i>
+      <p id="statReports" style="font-size:1.5rem; font-weight:800; margin:4px 0;">—</p>
+      <p style="font-size:12px; color:var(--text-muted);">รายงานรอดำเนินการ</p>
+    </div>
+  </div>
+
+  <!-- Tab nav -->
+  <div style="display:flex; gap:4px; margin-bottom:1rem; background:var(--surface2); border-radius:10px; padding:4px; width:fit-content;">
+    <button class="tab-btn active" id="tab-posts" onclick="switchTab('posts')">
+      <i class="bi bi-file-text"></i> โพสต์
+    </button>
+    <button class="tab-btn" id="tab-users" onclick="switchTab('users')">
+      <i class="bi bi-people"></i> สมาชิก
+    </button>
+    <button class="tab-btn" id="tab-reports" onclick="switchTab('reports')">
+      <i class="bi bi-flag"></i> รายงาน
+      <span id="reportsBadge" style="display:none; background:#e11d48; color:#fff; border-radius:20px; font-size:10px; font-weight:700; padding:1px 6px; margin-left:2px;"></span>
+    </button>
+  </div>
+
+  <!-- Posts table -->
+  <div id="panel-posts" class="card">
+    <div class="card-header-custom" style="justify-content:space-between;">
+      <span><i class="bi bi-file-text"></i> จัดการโพสต์</span>
+      <input type="text" id="searchPost" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterPosts(this.value)" />
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>หัวข้อ</th>
+              <th>ผู้เขียน</th>
+              <th>หมวดหมู่</th>
+              <th>Likes</th>
+              <th>ความคิดเห็น</th>
+              <th>วันที่</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="postsTableBody">
+            <tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--text-muted);">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users table -->
+  <div id="panel-users" class="card" style="display:none;">
+    <div class="card-header-custom" style="justify-content:space-between;">
+      <span><i class="bi bi-people"></i> จัดการสมาชิก</span>
+      <input type="text" id="searchUser" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterUsers(this.value)" />
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ชื่อผู้ใช้</th>
+              <th>อีเมล</th>
+              <th>Role</th>
+              <th>สมัครเมื่อ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reports table -->
+  <div id="panel-reports" class="card" style="display:none;">
+    <div class="card-header-custom" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <span><i class="bi bi-flag"></i> รายงานโพสต์</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <select id="filterReportStatus" onchange="loadReports(this.value)" class="form-control" style="padding:5px 10px;font-size:13px;width:auto;">
+          <option value="">ทั้งหมด</option>
+          <option value="pending" selected>รอดำเนินการ</option>
+          <option value="reviewed">จัดการแล้ว</option>
+          <option value="dismissed">ยกเลิก</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>โพสต์</th>
+              <th>เจ้าของโพสต์</th>
+              <th>ผู้รายงาน</th>
+              <th>เหตุผล</th>
+              <th>สถานะ</th>
+              <th>วันที่</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="reportsTableBody">
+            <tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--text-muted);">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.tab-btn {
+  background: none; border: none; border-radius: 7px;
+  padding: 7px 16px; font-size: 13px; font-family: inherit;
+  font-weight: 500; color: var(--text-muted); cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: all .15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.role-badge { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.role-admin { background: #fef3c7; color: #92400e; }
+.role-user { background: #eff6ff; color: #1d4ed8; }
+.status-badge { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.status-pending  { background: #fef3c7; color: #92400e; }
+.status-reviewed { background: #d1fae5; color: #065f46; }
+.status-dismissed { background: #f1f5f9; color: #64748b; }
+</style>
+
+<script src="assets/js/api.js"></script>
+<script>
+// Dark mode
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? '' : 'dark');
+  localStorage.setItem('darkMode', !isDark);
+  updateDarkIcon();
+}
+function updateDarkIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const icon = document.getElementById('darkIcon');
+  if (icon) icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+}
+updateDarkIcon();
+
+// Auth check
+const user = api.getUser();
+if (!api.isLoggedIn() || user?.role !== 'admin') {
+  alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+  window.location.href = 'index.html';
+}
+
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<i class="bi bi-${type==='success'?'check-circle':type==='error'?'x-circle':'info-circle'}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function formatDate(d) { return new Date(d).toLocaleDateString('th-TH', { year:'numeric', month:'short', day:'numeric' }); }
+
+let allPostsData = [];
+let allUsersData = [];
+
+function switchTab(tab) {
+  ['posts','users','reports'].forEach(t => {
+    document.getElementById(`panel-${t}`).style.display = t === tab ? 'block' : 'none';
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+  });
+  if (tab === 'reports') loadReports(document.getElementById('filterReportStatus').value);
+}
+
+async function loadStats() {
+  try {
+    const [statsData, postsData, usersData] = await Promise.all([
+      api.get('/admin/stats'),
+      api.get('/posts?limit=100'),
+      api.get('/admin/users'),
+    ]);
+
+    allPostsData = postsData.posts || [];
+    allUsersData = Array.isArray(usersData) ? usersData : (usersData.users || []);
+
+    document.getElementById('statPosts').textContent    = statsData.posts    || allPostsData.length;
+    document.getElementById('statUsers').textContent    = statsData.users    || allUsersData.length;
+    document.getElementById('statComments').textContent = statsData.comments || 0;
+    document.getElementById('statLikes').textContent    = statsData.likes    || 0;
+
+    const pendingCount = statsData.pending_reports || 0;
+    document.getElementById('statReports').textContent = pendingCount;
+    const badge = document.getElementById('reportsBadge');
+    if (pendingCount > 0) {
+      badge.textContent = pendingCount;
+      badge.style.display = 'inline';
+    }
+
+    renderPostsTable(allPostsData);
+    renderUsersTable(allUsersData);
+  } catch(e) {
+    toast('ไม่สามารถโหลดข้อมูลได้: ' + e.message, 'error');
+  }
+}
+
+function renderPostsTable(posts) {
+  const tb = document.getElementById('postsTableBody');
+  if (!posts.length) {
+    tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--text-muted);">ไม่มีโพสต์</td></tr>`;
+    return;
+  }
+  tb.innerHTML = posts.map(p => `
+    <tr>
+      <td style="color:var(--text-muted); font-size:12px;">${p.id}</td>
+      <td><a href="post.html?id=${p.id}" style="color:var(--primary); font-weight:600; font-size:13px;">${escHtml(p.title?.substring(0,50))}${p.title?.length > 50 ? '...' : ''}</a></td>
+      <td style="font-size:13px;">${escHtml(p.username)}</td>
+      <td style="font-size:12px; color:var(--text-muted);">${escHtml(p.category_name || '—')}</td>
+      <td style="font-size:13px; text-align:center;"><i class="bi bi-heart" style="color:#e11d48;font-size:11px;"></i> ${p.like_count || p.likes || 0}</td>
+      <td style="font-size:13px; text-align:center;"><i class="bi bi-chat" style="font-size:11px;"></i> ${p.comment_count || 0}</td>
+      <td style="font-size:12px; color:var(--text-muted);">${formatDate(p.created_at)}</td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          <a href="create-post.html?id=${p.id}" style="padding:4px 8px; font-size:12px; background:var(--primary-light); color:var(--primary); border-radius:6px; border:none; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:4px;"><i class="bi bi-pencil"></i></a>
+          <button onclick="adminDeletePost(${p.id})" style="padding:4px 8px; font-size:12px; background:#fef2f2; color:var(--danger); border-radius:6px; border:none; cursor:pointer;"><i class="bi bi-trash3"></i></button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function renderUsersTable(users) {
+  const tb = document.getElementById('usersTableBody');
+  if (!users.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);">ไม่มีสมาชิก</td></tr>`;
+    return;
+  }
+  const currentUser = api.getUser();
+  tb.innerHTML = users.map(u => `
+    <tr>
+      <td style="color:var(--text-muted); font-size:12px;">${u.id}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">${u.username?.slice(0,2).toUpperCase()}</div>
+          <span style="font-weight:600; font-size:13px;">${escHtml(u.username)}</span>
+        </div>
+      </td>
+      <td style="font-size:13px; color:var(--text-muted);">${escHtml(u.email)}</td>
+      <td><span class="role-badge ${u.role==='admin'?'role-admin':'role-user'}">${u.role==='admin'?'👑 Admin':'สมาชิก'}</span></td>
+      <td style="font-size:12px; color:var(--text-muted);">${formatDate(u.created_at)}</td>
+      <td>
+        ${u.id !== currentUser.id ? `
+          <button onclick="adminDeleteUser(${u.id}, '${escHtml(u.username)}')" style="padding:4px 8px; font-size:12px; background:#fef2f2; color:var(--danger); border-radius:6px; border:none; cursor:pointer;"><i class="bi bi-trash3"></i> ลบ</button>
+        ` : '<span style="font-size:12px; color:var(--text-muted);">คุณ</span>'}
+      </td>
+    </tr>`).join('');
+}
+
+async function loadReports(status = '') {
+  const tb = document.getElementById('reportsTableBody');
+  tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--text-muted);">กำลังโหลด...</td></tr>`;
+  try {
+    const url = '/admin/reports' + (status ? `?status=${status}` : '');
+    const reports = await api.get(url);
+    if (!reports.length) {
+      tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--text-muted);">ไม่มีรายงาน</td></tr>`;
+      return;
+    }
+    tb.innerHTML = reports.map(r => `
+      <tr>
+        <td style="color:var(--text-muted);font-size:12px;">${r.id}</td>
+        <td><a href="post.html?id=${r.post_id}" style="color:var(--primary);font-weight:600;font-size:13px;">${escHtml((r.post_title||'(ไม่พบโพสต์)').substring(0,40))}</a></td>
+        <td style="font-size:13px;">${escHtml(r.post_owner || '—')}</td>
+        <td style="font-size:13px;">${escHtml(r.reporter || '—')}</td>
+        <td style="font-size:12px; max-width:160px; word-break:break-word;">${escHtml(r.reason)}</td>
+        <td><span class="status-badge status-${r.status}">${r.status === 'pending' ? '⏳ รอดำเนินการ' : r.status === 'reviewed' ? '✅ จัดการแล้ว' : '❌ ยกเลิก'}</span></td>
+        <td style="font-size:12px;color:var(--text-muted);">${formatDate(r.created_at)}</td>
+        <td>
+          ${r.status === 'pending' ? `
+            <div style="display:flex;gap:4px;">
+              <button onclick="updateReport(${r.id},'reviewed',this)" style="padding:4px 8px;font-size:11px;background:#d1fae5;color:#065f46;border-radius:6px;border:none;cursor:pointer;">✅ จัดการแล้ว</button>
+              <button onclick="updateReport(${r.id},'dismissed',this)" style="padding:4px 8px;font-size:11px;background:#f1f5f9;color:#64748b;border-radius:6px;border:none;cursor:pointer;">❌ ยกเลิก</button>
+            </div>
+          ` : `<button onclick="updateReport(${r.id},'pending',this)" style="padding:4px 8px;font-size:11px;background:#fef3c7;color:#92400e;border-radius:6px;border:none;cursor:pointer;">↩ คืนสถานะ</button>`}
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--danger);">โหลดข้อมูลไม่ได้: ${e.message}</td></tr>`;
+  }
+}
+
+async function updateReport(id, status, btn) {
+  btn.disabled = true;
+  try {
+    await api.put(`/admin/reports/${id}`, { status });
+    toast('อัปเดตสถานะสำเร็จ', 'success');
+    loadReports(document.getElementById('filterReportStatus').value);
+    // อัปเดต badge
+    const statsData = await api.get('/admin/stats');
+    const count = statsData.pending_reports || 0;
+    document.getElementById('statReports').textContent = count;
+    const badge = document.getElementById('reportsBadge');
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline' : 'none';
+  } catch(e) {
+    toast(e.message, 'error');
+    btn.disabled = false;
+  }
+}
+
+function filterPosts(q) {
+  const filtered = allPostsData.filter(p =>
+    p.title?.toLowerCase().includes(q.toLowerCase()) ||
+    p.username?.toLowerCase().includes(q.toLowerCase())
+  );
+  renderPostsTable(filtered);
+}
+
+function filterUsers(q) {
+  const filtered = allUsersData.filter(u =>
+    u.username?.toLowerCase().includes(q.toLowerCase()) ||
+    u.email?.toLowerCase().includes(q.toLowerCase())
+  );
+  renderUsersTable(filtered);
+}
+
+async function adminDeletePost(postId) {
+  if (!confirm('ต้องการลบโพสต์นี้?')) return;
+  try {
+    await api.delete(`/posts/${postId}`);
+    allPostsData = allPostsData.filter(p => p.id !== postId);
+    renderPostsTable(allPostsData);
+    document.getElementById('statPosts').textContent = allPostsData.length;
+    toast('ลบโพสต์สำเร็จ', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function adminDeleteUser(userId, username) {
+  if (!confirm(`ต้องการลบสมาชิก "${username}"? การกระทำนี้จะลบโพสต์และความคิดเห็นทั้งหมดของสมาชิกด้วย`)) return;
+  try {
+    await api.delete(`/admin/users/${userId}`);
+    allUsersData = allUsersData.filter(u => u.id !== userId);
+    renderUsersTable(allUsersData);
+    document.getElementById('statUsers').textContent = allUsersData.length;
+    toast('ลบสมาชิกสำเร็จ', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+loadStats();
+</script>
+</body>
+</html>

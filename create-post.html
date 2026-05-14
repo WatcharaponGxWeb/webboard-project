@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — สร้างโพสต์</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <i class="bi bi-layout-text-sidebar-reverse"></i> WebBoard
+  </a>
+  <div class="navbar-actions" id="navbarActions"></div>
+</nav>
+
+<div style="max-width:680px; margin:0 auto; padding:1.5rem;">
+  <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
+    <button onclick="window.history.back()" class="btn-ghost" style="padding:6px 10px;"><i class="bi bi-arrow-left"></i></button>
+    <div>
+      <h1 style="font-size:1.2rem; font-weight:700;" id="pageTitle">สร้างโพสต์ใหม่</h1>
+      <p style="font-size:13px; color:var(--text-muted);">แชร์ความคิดเห็นหรือเรื่องราวของคุณ</p>
+    </div>
+  </div>
+
+  <div id="alertBox" style="display:none"></div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">หัวข้อโพสต์ <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="title" class="form-control" placeholder="หัวข้อที่น่าสนใจ..." maxlength="255" />
+        <p class="form-hint"><span id="titleCount">0</span>/255 ตัวอักษร</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมวดหมู่</label>
+        <select id="category" class="form-select">
+          <option value="">-- เลือกหมวดหมู่ --</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">เนื้อหา <span style="color:var(--danger)">*</span></label>
+        <textarea id="content" class="form-control" placeholder="เขียนเนื้อหาโพสต์ของคุณที่นี่..." style="min-height:200px;"></textarea>
+        <p class="form-hint"><span id="contentCount">0</span> ตัวอักษร</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">รูปภาพประกอบ (ไม่บังคับ)</label>
+        <div id="imageDropZone" style="border:2px dashed var(--border); border-radius:8px; padding:1.5rem; text-align:center; cursor:pointer; transition:border-color .2s; background:var(--surface2);"
+          onclick="document.getElementById('imageFile').click()"
+          ondragover="event.preventDefault(); this.style.borderColor='var(--primary)'"
+          ondragleave="this.style.borderColor='var(--border)'"
+          ondrop="handleDrop(event)">
+          <i class="bi bi-image" style="font-size:2rem; color:var(--text-light); display:block; margin-bottom:6px;"></i>
+          <p style="font-size:14px; color:var(--text-muted);">คลิกหรือลากไฟล์มาวางที่นี่</p>
+          <p style="font-size:12px; color:var(--text-light); margin-top:4px;">PNG, JPG, GIF — ขนาดไม่เกิน 5MB</p>
+        </div>
+        <input type="file" id="imageFile" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" style="display:none" onchange="handleFileSelect(this)" />
+        <div id="imagePreview" style="display:none; margin-top:0.75rem; position:relative;">
+          <img id="previewImg" style="width:100%; max-height:240px; object-fit:cover; border-radius:8px;" />
+          <button onclick="clearImage()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:0.75rem; justify-content:flex-end; margin-top:0.5rem;">
+        <button class="btn-secondary" onclick="window.history.back()">ยกเลิก</button>
+        <button class="btn-primary" id="submitBtn" onclick="doSubmit()" style="width:auto;">
+          <i class="bi bi-send" id="submitIcon"></i>
+          <span id="submitText">เผยแพร่โพสต์</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+if (!api.isLoggedIn()) window.location.href = 'login.html';
+
+const editId = new URLSearchParams(location.search).get('id');
+let selectedFile = null;
+let existingImage = null; // เก็บชื่อไฟล์รูปเดิม
+
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<i class="bi bi-${type==='success'?'check-circle':type==='error'?'x-circle':'info-circle'}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('alertBox');
+  el.style.display = 'flex';
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<i class="bi bi-${type==='danger'?'exclamation-circle':'check-circle'}"></i> ${msg}`;
+}
+
+function renderNavbar() {
+  const el = document.getElementById('navbarActions');
+  const user = api.getUser();
+  el.innerHTML = `
+    <div style="position:relative;">
+      <div class="avatar-sm" onclick="toggleMenu()" id="avatarBtn">${user?.username?.slice(0,2).toUpperCase()}</div>
+      <div class="dropdown-menu-custom" id="userMenu" style="display:none;">
+        <div class="dropdown-item-custom" onclick="api.logout()"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</div>
+      </div>
+    </div>`;
+}
+function toggleMenu() {
+  const m = document.getElementById('userMenu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+}
+
+async function loadCategories() {
+  try {
+    const data = await api.get('/categories');
+    // รองรับทั้ง array ตรงๆ และ { categories: [...] }
+    const cats = Array.isArray(data) ? data : (data.categories || data.data || []);
+    const sel = document.getElementById('category');
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  } catch(e) {
+    console.error('loadCategories error:', e);
+  }
+}
+
+async function loadPostForEdit() {
+  if (!editId) return;
+  document.getElementById('pageTitle').textContent = 'แก้ไขโพสต์';
+  document.getElementById('submitText').textContent = 'บันทึกการแก้ไข';
+  document.getElementById('submitIcon').className = 'bi bi-check2';
+  try {
+    const data = await api.get(`/posts/${editId}`);
+    // รองรับทั้ง data.post และ data ตรงๆ
+    const post = data.post || data;
+    document.getElementById('title').value = post.title || '';
+    document.getElementById('content').value = post.content || '';
+    updateCounts();
+    // รอ categories โหลดเสร็จก่อนแล้วค่อย set
+    setTimeout(() => {
+      if (post.category_id) document.getElementById('category').value = post.category_id;
+    }, 600);
+    // โหลดรูปเดิม
+    if (post.image) {
+      existingImage = post.image;
+      document.getElementById('imagePreview').style.display = 'block';
+      document.getElementById('previewImg').src = `https://webboard-project-production.up.railway.app/uploads/${post.image}`;
+    }
+  } catch(e) {
+    console.error('loadPostForEdit error:', e);
+    toast('โหลดข้อมูลโพสต์ไม่สำเร็จ', 'error');
+  }
+}
+
+function updateCounts() {
+  document.getElementById('titleCount').textContent = document.getElementById('title').value.length;
+  document.getElementById('contentCount').textContent = document.getElementById('content').value.length;
+}
+
+document.getElementById('title').addEventListener('input', updateCounts);
+document.getElementById('content').addEventListener('input', updateCounts);
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { toast('ไฟล์ขนาดใหญ่เกินไป (สูงสุด 5MB)', 'error'); return; }
+  selectedFile = file;
+  existingImage = null; // ล้างรูปเดิมเพราะมีรูปใหม่
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('imagePreview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('imageDropZone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('imageFile').files = dt.files;
+    handleFileSelect(document.getElementById('imageFile'));
+  }
+}
+
+function clearImage() {
+  selectedFile = null;
+  existingImage = null;
+  document.getElementById('imageFile').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+}
+
+async function doSubmit() {
+  const title = document.getElementById('title').value.trim();
+  const content = document.getElementById('content').value.trim();
+  const category_id = document.getElementById('category').value;
+  const btn = document.getElementById('submitBtn');
+
+  if (!title) { showAlert('กรุณาใส่หัวข้อโพสต์', 'danger'); return; }
+  if (!content) { showAlert('กรุณาใส่เนื้อหาโพสต์', 'danger'); return; }
+
+  btn.disabled = true;
+  document.getElementById('submitText').textContent = 'กำลังบันทึก...';
+
+  try {
+    // ส่งเป็น FormData เพราะ server รับ multipart/form-data โดยตรง
+    const fd = new FormData();
+    fd.append('title', title);
+    fd.append('content', content);
+    if (category_id) fd.append('category_id', category_id);
+    if (selectedFile) fd.append('image', selectedFile);
+
+    const url = editId
+      ? `https://webboard-project-production.up.railway.app/api/posts/${editId}`
+      : `https://webboard-project-production.up.railway.app/api/posts`;
+    const method = editId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${api.getToken()}` },
+      body: fd,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'เกิดข้อผิดพลาด');
+
+    toast(editId ? 'แก้ไขโพสต์สำเร็จ' : 'สร้างโพสต์สำเร็จ', 'success');
+    const newId = editId || data.postId || data.post_id || data.id;
+    setTimeout(() => window.location.href = 'index.html', 800);
+  } catch(e) {
+    showAlert(e.message || 'เกิดข้อผิดพลาด', 'danger');
+    btn.disabled = false;
+    document.getElementById('submitText').textContent = editId ? 'บันทึกการแก้ไข' : 'เผยแพร่โพสต์';
+  }
+}
+
+renderNavbar();
+loadCategories().then(() => loadPostForEdit());
+</script>
+</body>
+</html>

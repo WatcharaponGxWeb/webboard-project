@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — โพสต์</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'dark' || (!saved && prefersDark)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <i class="bi bi-layout-text-sidebar-reverse"></i> WebBoard
+  </a>
+  <div class="navbar-actions" id="navbarActions"></div>
+</nav>
+
+<!-- Report Modal -->
+<div id="reportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:var(--surface); border-radius:16px; padding:1.5rem; width:90%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <h3 style="margin-bottom:0.5rem; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+      <i class="bi bi-flag-fill" style="color:#ef4444;"></i> รายงานโพสต์
+    </h3>
+    <p style="font-size:13px; color:var(--text-muted); margin-bottom:1rem;">กรุณาเลือกเหตุผลที่รายงาน</p>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:1.25rem;">
+      <label style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px;">
+        <input type="radio" name="reportReason" value="เนื้อหาไม่เหมาะสม"> เนื้อหาไม่เหมาะสม
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px;">
+        <input type="radio" name="reportReason" value="การล่วงละเมิดหรือข่มขู่"> การล่วงละเมิดหรือข่มขู่
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px;">
+        <input type="radio" name="reportReason" value="ข้อมูลเท็จหรือหลอกลวง"> ข้อมูลเท็จหรือหลอกลวง
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px;">
+        <input type="radio" name="reportReason" value="สแปมหรือโฆษณา"> สแปมหรือโฆษณา
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px;">
+        <input type="radio" name="reportReason" value="อื่นๆ"> อื่นๆ
+      </label>
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button onclick="closeReportModal()" class="btn-secondary" style="padding:8px 16px; font-size:13px;">ยกเลิก</button>
+      <button onclick="submitReport()" style="padding:8px 16px; font-size:13px; background:#ef4444; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600;">
+        <i class="bi bi-flag"></i> ส่งรายงาน
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <main class="main" style="max-width:720px; margin:0 auto; padding:1.5rem;">
+
+    <button onclick="window.history.back()" class="btn-ghost" style="margin-bottom:1rem; padding-left:0;">
+      <i class="bi bi-arrow-left"></i> กลับ
+    </button>
+
+    <div id="postContent">
+      <div class="loading-wrap"><div class="spinner"></div><span>กำลังโหลด...</span></div>
+    </div>
+
+    <div id="commentsSection" style="display:none; margin-top:1.5rem;">
+      <div class="card">
+        <div class="card-header-custom">
+          <i class="bi bi-chat-dots"></i>
+          <span id="commentCount">ความคิดเห็น</span>
+        </div>
+        <div class="card-body">
+          <div id="commentForm" style="margin-bottom:1rem; display:none;">
+            <textarea id="commentInput" class="form-control" placeholder="เขียนความคิดเห็นของคุณ..." style="min-height:80px; margin-bottom:0.5rem;"></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button class="btn-secondary" style="padding:7px 14px; font-size:13px;" onclick="document.getElementById('commentInput').value=''">ล้าง</button>
+              <button class="btn-primary-sm" onclick="submitComment()"><i class="bi bi-send"></i> ส่งความคิดเห็น</button>
+            </div>
+          </div>
+          <div id="loginPrompt" style="display:none; text-align:center; padding:1rem; background:var(--surface2); border-radius:8px; margin-bottom:1rem;">
+            <p style="font-size:14px; color:var(--text-muted); margin-bottom:0.5rem;">เข้าสู่ระบบเพื่อแสดงความคิดเห็น</p>
+            <button class="btn-primary-sm" onclick="window.location.href='login.html'"><i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ</button>
+          </div>
+          <div id="commentList"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+const postId = new URLSearchParams(location.search).get('id');
+let postData = null;
+
+function toast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<i class="bi bi-${type==='success'?'check-circle':type==='error'?'x-circle':'info-circle'}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function timeAgo(d) {
+  const diff = Date.now() - new Date(d).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'เมื่อกี้';
+  if (m < 60) return `${m} นาทีที่แล้ว`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ชั่วโมงที่แล้ว`;
+  const d2 = Math.floor(h / 24);
+  if (d2 < 30) return `${d2} วันที่แล้ว`;
+  return new Date(d).toLocaleDateString('th-TH');
+}
+
+function initials(n) { return n ? n.slice(0,2).toUpperCase() : '??'; }
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function stringToColor(str) {
+  const palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#dc2626','#db2777'];
+  let h = 0;
+  for (let i = 0; i < (str||'').length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
+}
+
+// Dark Mode
+function toggleDarkMode() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  updateThemeBtn();
+}
+function updateThemeBtn() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) {
+    btn.innerHTML = `<i class="bi bi-${isDark ? 'sun' : 'moon'}"></i>`;
+    btn.title = isDark ? 'โหมดสว่าง' : 'โหมดมืด';
+  }
+}
+
+// Report Modal
+function openReportModal() {
+  document.getElementById('reportModal').style.display = 'flex';
+}
+function closeReportModal() {
+  document.getElementById('reportModal').style.display = 'none';
+  document.querySelectorAll('input[name="reportReason"]').forEach(r => r.checked = false);
+}
+async function submitReport() {
+  const reason = document.querySelector('input[name="reportReason"]:checked')?.value;
+  if (!reason) { toast('กรุณาเลือกเหตุผล', 'error'); return; }
+  try {
+    await api.post(`/posts/${postId}/report`, { reason });
+    toast('ส่งรายงานสำเร็จ ขอบคุณที่ช่วยดูแลชุมชน', 'success');
+    closeReportModal();
+  } catch(e) { toast(e.message, 'error'); }
+}
+document.getElementById('reportModal').addEventListener('click', function(e) {
+  if (e.target === this) closeReportModal();
+});
+
+function renderNavbar() {
+  const el = document.getElementById('navbarActions');
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const themeBtn = `<button id="themeToggleBtn" class="btn-ghost" onclick="toggleDarkMode()" title="${isDark ? 'โหมดสว่าง' : 'โหมดมืด'}" style="padding:6px 10px; font-size:16px;">
+    <i class="bi bi-${isDark ? 'sun' : 'moon'}"></i>
+  </button>`;
+
+  if (api.isLoggedIn()) {
+    const user = api.getUser();
+    el.innerHTML = `
+      ${themeBtn}
+      <div style="position:relative;">
+        <div class="avatar-sm" onclick="toggleMenu()" id="avatarBtn">${initials(user?.username)}</div>
+        <div class="dropdown-menu-custom" id="userMenu" style="display:none;">
+          <div class="dropdown-item-custom" onclick="window.location.href='profile.html'"><i class="bi bi-person"></i> โปรไฟล์ของฉัน</div>
+          ${user?.role === 'admin' ? `<div class="dropdown-item-custom" onclick="window.location.href='admin.html'"><i class="bi bi-shield-check"></i> แผง Admin</div>` : ''}
+          <div class="dropdown-item-custom" onclick="api.logout()"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</div>
+        </div>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      ${themeBtn}
+      <button class="btn-ghost" onclick="location.href='login.html'"><i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ</button>
+      <button class="btn-primary-sm" onclick="location.href='register.html'"><i class="bi bi-person-plus"></i> สมัครสมาชิก</button>`;
+  }
+}
+
+function toggleMenu() {
+  const m = document.getElementById('userMenu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  const m = document.getElementById('userMenu');
+  if (m && !m.contains(e.target) && !document.getElementById('avatarBtn')?.contains(e.target)) m.style.display='none';
+});
+
+async function loadPost() {
+  if (!postId) { location.href = 'index.html'; return; }
+  try {
+    const data = await api.get(`/posts/${postId}`);
+    postData = data;
+    renderPost(data);
+    renderComments(data.comments || []);
+    document.getElementById('commentsSection').style.display = 'block';
+    document.title = `WebBoard — ${data.title}`;
+    if (api.isLoggedIn()) {
+      document.getElementById('commentForm').style.display = 'block';
+    } else {
+      document.getElementById('loginPrompt').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('postContent').innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> ไม่พบโพสต์นี้</div>`;
+  }
+}
+
+function renderPost(post) {
+  const user = api.getUser();
+  const isOwner = user && (user.id === post.user_id || user.role === 'admin');
+  const catColor = post.category_color || '#6366f1';
+  const imgUrl = post.image ? (post.image.startsWith('http') ? post.image : 'https://webboard-project-production.up.railway.app' + post.image) : null;
+
+  document.getElementById('postContent').innerHTML = `
+    <div class="card">
+      <div class="card-body" style="padding:1.5rem;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap;">
+          <div class="avatar-xs" style="background:${stringToColor(post.username)}; width:32px;height:32px;font-size:13px;">${initials(post.username)}</div>
+          <span style="font-weight:600; font-size:14px;">${escHtml(post.username)}</span>
+          <span style="font-size:12px; color:var(--text-muted);">${timeAgo(post.created_at)}</span>
+          ${post.category_name ? `<span class="category-badge" style="background:${catColor}20; color:${catColor};">${post.category_name}</span>` : ''}
+          ${isOwner ? `
+            <div style="margin-left:auto; display:flex; gap:6px;">
+              <button class="btn-ghost" onclick="location.href='create-post.html?id=${post.id}'" style="padding:5px 10px; font-size:13px;"><i class="bi bi-pencil"></i> แก้ไข</button>
+              <button class="btn-danger" onclick="deletePost()" style="font-size:13px;"><i class="bi bi-trash"></i> ลบ</button>
+            </div>` : ''}
+        </div>
+
+        <h1 style="font-size:1.4rem; font-weight:800; margin-bottom:0.75rem; line-height:1.4;">${escHtml(post.title)}</h1>
+
+        ${imgUrl ? `<div style="margin-bottom:1rem; border-radius:12px; overflow:hidden; max-height:480px; background:var(--surface2);">
+          <img src="${imgUrl}" alt="รูปภาพโพสต์" style="width:100%; max-height:480px; object-fit:contain; display:block; border-radius:12px;">
+        </div>` : ''}
+
+        <div style="font-size:15px; line-height:1.8; color:var(--text); white-space:pre-wrap; margin-bottom:1rem;">${escHtml(post.content)}</div>
+
+        <div style="display:flex; align-items:center; gap:1rem; padding-top:0.875rem; border-top:1px solid var(--border); flex-wrap:wrap;">
+          <button class="like-btn${post.user_liked ? ' liked' : ''}" id="likeBtn" onclick="toggleLike()">
+            <i class="bi bi-heart${post.user_liked ? '-fill' : ''}"></i>
+            <span id="likeCount">${post.like_count || post.likes || 0}</span> ถูกใจ
+          </button>
+          <span class="post-stat"><i class="bi bi-chat"></i> <span id="cmtCountBadge">${postData?.comments?.length || post.comment_count || 0}</span></span>
+          <span class="post-stat"><i class="bi bi-eye"></i> ${post.views || 0} ครั้ง</span>
+          ${api.isLoggedIn() && !isOwner ? `
+          <button onclick="openReportModal()" style="margin-left:auto; background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 8px; border-radius:6px; transition:color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">
+            <i class="bi bi-flag"></i> รายงาน
+          </button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderComments(comments) {
+  document.getElementById('commentCount').textContent = `ความคิดเห็น (${comments.length})`;
+  const el = document.getElementById('commentList');
+  const user = api.getUser();
+  if (!comments.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:1.5rem;"><i class="bi bi-chat" style="font-size:2rem; display:block; margin-bottom:0.5rem;"></i><p>ยังไม่มีความคิดเห็น เป็นคนแรกที่แสดงความเห็น!</p></div>`;
+    return;
+  }
+  el.innerHTML = comments.map(c => `
+    <div class="comment" id="comment-${c.id}">
+      <div class="comment-header">
+        <div class="avatar-xs" style="background:${stringToColor(c.username)}">${initials(c.username)}</div>
+        <span class="comment-author">${escHtml(c.username)}</span>
+        <span class="comment-time">${timeAgo(c.created_at)}</span>
+        ${user && (user.id === c.user_id || user.role === 'admin') ? `
+          <button class="comment-delete" onclick="deleteComment(${c.id})" title="ลบ"><i class="bi bi-trash3"></i></button>` : ''}
+      </div>
+      <p class="comment-body">${escHtml(c.content)}</p>
+    </div>`).join('');
+}
+
+async function toggleLike() {
+  if (!api.isLoggedIn()) { toast('กรุณาเข้าสู่ระบบก่อน', 'error'); return; }
+  try {
+    const data = await api.post(`/posts/${postId}/like`, {});
+    const btn = document.getElementById('likeBtn');
+    btn.classList.toggle('liked', data.liked);
+    btn.querySelector('i').className = `bi bi-heart${data.liked ? '-fill' : ''}`;
+    document.getElementById('likeCount').textContent = data.like_count;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function submitComment() {
+  const content = document.getElementById('commentInput').value.trim();
+  if (!content) { toast('กรุณาพิมพ์ความคิดเห็นก่อน', 'error'); return; }
+  try {
+    await api.post('/comments', { content, post_id: parseInt(postId) });
+    document.getElementById('commentInput').value = '';
+    toast('ส่งความคิดเห็นสำเร็จ', 'success');
+    await loadPost();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteComment(commentId) {
+  if (!confirm('ต้องการลบความคิดเห็นนี้?')) return;
+  try {
+    await api.delete(`/comments/${commentId}`);
+    document.getElementById(`comment-${commentId}`)?.remove();
+    toast('ลบความคิดเห็นสำเร็จ', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deletePost() {
+  if (!confirm('ต้องการลบโพสต์นี้? การกระทำนี้ไม่สามารถย้อนกลับได้')) return;
+  try {
+    await api.delete(`/posts/${postId}`);
+    toast('ลบโพสต์สำเร็จ', 'success');
+    setTimeout(() => window.location.href = 'index.html', 800);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+renderNavbar();
+loadPost();
+</script>
+</body>
+</html>

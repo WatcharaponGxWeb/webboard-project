@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — สมัครสมาชิก</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <i class="bi bi-layout-text-sidebar-reverse"></i>
+      <span>WebBoard</span>
+    </div>
+    <h1 class="auth-title">สมัครสมาชิก</h1>
+    <p class="auth-sub">สร้างบัญชีเพื่อเริ่มแชร์ความคิดเห็น</p>
+
+    <div id="alertBox" style="display:none"></div>
+
+    <div class="form-group">
+      <label class="form-label">ชื่อผู้ใช้</label>
+      <input type="text" id="username" class="form-control" placeholder="ชื่อที่ใช้แสดง" />
+      <p class="form-hint">3–30 ตัวอักษร ตัวเลข หรือขีดล่าง</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">อีเมล</label>
+      <input type="email" id="email" class="form-control" placeholder="your@email.com" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">รหัสผ่าน</label>
+      <div style="position:relative;">
+        <input type="password" id="password" class="form-control" placeholder="อย่างน้อย 6 ตัวอักษร" style="padding-right:40px" />
+        <button onclick="togglePwd('password','eye1')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;">
+          <i class="bi bi-eye" id="eye1"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">ยืนยันรหัสผ่าน</label>
+      <div style="position:relative;">
+        <input type="password" id="confirm" class="form-control" placeholder="พิมพ์รหัสผ่านอีกครั้ง" style="padding-right:40px" />
+        <button onclick="togglePwd('confirm','eye2')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;">
+          <i class="bi bi-eye" id="eye2"></i>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="registerBtn" onclick="doRegister()">
+      <i class="bi bi-person-plus"></i> สมัครสมาชิก
+    </button>
+
+    <div class="auth-divider"><span>หรือ</span></div>
+
+    <p style="text-align:center; font-size:14px; color:var(--text-muted);">
+      มีบัญชีแล้ว? <a href="login.html" class="auth-link">เข้าสู่ระบบ</a>
+    </p>
+    <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-top:6px;">
+      <a href="index.html" style="color:var(--text-muted);">
+        <i class="bi bi-arrow-left" style="font-size:12px"></i> กลับหน้าหลัก
+      </a>
+    </p>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+if (api.isLoggedIn()) window.location.href = 'index.html';
+
+function togglePwd(id, iconId) {
+  const inp = document.getElementById(id);
+  const ic = document.getElementById(iconId);
+  if (inp.type === 'password') { inp.type = 'text'; ic.className = 'bi bi-eye-slash'; }
+  else { inp.type = 'password'; ic.className = 'bi bi-eye'; }
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('alertBox');
+  el.style.display = 'flex';
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<i class="bi bi-${type==='danger'?'exclamation-circle':'check-circle'}"></i> ${msg}`;
+}
+
+async function doRegister() {
+  const username = document.getElementById('username').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const confirm = document.getElementById('confirm').value;
+  const btn = document.getElementById('registerBtn');
+
+  if (!username || !email || !password) { showAlert('กรุณากรอกข้อมูลให้ครบ', 'danger'); return; }
+  if (username.length < 3) { showAlert('ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร', 'danger'); return; }
+  if (password.length < 6) { showAlert('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'danger'); return; }
+  if (password !== confirm) { showAlert('รหัสผ่านไม่ตรงกัน', 'danger'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></span> กำลังสมัคร...';
+
+  try {
+    await api.post('/auth/register', { username, email, password });
+    showAlert('สมัครสมาชิกสำเร็จ! กำลังพาไปหน้าเข้าสู่ระบบ...', 'success');
+    setTimeout(() => window.location.href = 'login.html', 1200);
+  } catch(e) {
+    showAlert(e.message || 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-person-plus"></i> สมัครสมาชิก';
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+</script>
+</body>
+</html>
