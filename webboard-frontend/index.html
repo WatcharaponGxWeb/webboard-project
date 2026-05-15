@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — หน้าหลัก</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* ── Micro-interaction: Like Heart Pop ── */
+    @keyframes heartPop {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(1.45); }
+      55%  { transform: scale(0.88); }
+      75%  { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+    @keyframes heartFloat {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-36px) scale(0.7); }
+    }
+    .like-btn.pop i {
+      animation: heartPop 0.42s cubic-bezier(0.4,0,0.2,1);
+    }
+    .heart-float {
+      position: absolute;
+      pointer-events: none;
+      font-size: 18px;
+      color: #e11d48;
+      animation: heartFloat 0.55s ease-out forwards;
+    }
+
+    /* ── Hover card lift (extra depth) ── */
+    .post-card {
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1),
+                  box-shadow 0.28s cubic-bezier(0.4,0,0.2,1),
+                  border-color 0.28s ease;
+      will-change: transform, box-shadow;
+    }
+    .post-card:hover {
+      transform: translateY(-5px) scale(1.012);
+      box-shadow: 0 16px 40px rgba(59,130,246,0.18), 0 4px 12px rgba(30,50,100,0.10);
+      border-color: rgba(99,102,241,0.35) !important;
+    }
+
+    /* ── Comment bounce ── */
+    @keyframes commentBounce {
+      0%   { opacity: 0; transform: translateY(10px) scale(0.95); }
+      60%  { transform: translateY(-3px) scale(1.02); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .comment-count-pop {
+      animation: commentBounce 0.35s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    /* ── Skeleton shimmer override for post list ── */
+    .sk-post {
+      background: var(--surface);
+      border: var(--glass-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      backdrop-filter: var(--glass-blur);
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .sk-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    /* ── Page-in stagger for post cards ── */
+    @keyframes cardStagger {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .post-card-wrap {
+      animation: cardStagger 0.4s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    /* ── Notification badge pulse ── */
+    @keyframes badgePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(225,29,72,0.6); }
+      50%       { box-shadow: 0 0 0 5px rgba(225,29,72,0); }
+    }
+    #notifBadge[style*="flex"] {
+      animation: badgePulse 1.5s infinite;
+    }
+
+    /* ── Smooth avatar hover ── */
+    .avatar-sm {
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+    .avatar-sm:hover {
+      transform: scale(1.10);
+      box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+    }
+
+    /* ── Filter tag ripple ── */
+    .filter-tag { position: relative; overflow: hidden; }
+    .filter-tag::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.18);
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .filter-tag:active::after { opacity: 1; }
+
+    /* ── Sidebar item slide ── */
+    .sidebar-item {
+      transition: background 0.2s, color 0.2s, transform 0.2s, padding-left 0.2s;
+    }
+    .sidebar-item:hover { padding-left: 1.25rem; }
+
+    /* ── Trending item hover glow ── */
+    .trending-item:hover .trending-num {
+      color: var(--primary);
+      transition: color 0.2s;
+    }
+
+    /* ── Load more button spin ── */
+    #loadMoreBtn.loading i { animation: spin 0.7s linear infinite; }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <i class="bi bi-layout-text-sidebar-reverse"></i>
+    WebBoard
+  </a>
+  <div class="navbar-search">
+    <i class="bi bi-search"></i>
+    <input type="text" id="searchInput" placeholder="ค้นหาโพสต์..." autocomplete="off" />
+  </div>
+  <button class="dark-toggle" id="darkToggle" onclick="toggleDark()" title="เปลี่ยนธีม">
+    <i class="bi bi-moon-fill" id="darkIcon"></i>
+  </button>
+  <div class="navbar-actions" id="navbarActions">
+    <!-- filled by JS -->
+  </div>
+</nav>
+
+<!-- Layout -->
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">เมนู</div>
+      <button class="sidebar-item active" id="navHome" onclick="setFilter(null)">
+        <i class="bi bi-house-door"></i> หน้าหลัก
+      </button>
+      <button class="sidebar-item" onclick="window.location.href='create-post.html'">
+        <i class="bi bi-plus-circle"></i> สร้างโพสต์
+      </button>
+      <button class="sidebar-item" id="navTrending" onclick="loadTrending()">
+        <i class="bi bi-fire"></i> Trending
+      </button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">หมวดหมู่</div>
+      <div id="categorySidebar"></div>
+    </div>
+    <div class="sidebar-section" id="adminSection" style="display:none">
+      <div class="sidebar-label">Admin</div>
+      <button class="sidebar-item" onclick="window.location.href='admin.html'">
+        <i class="bi bi-shield-check"></i> จัดการระบบ
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+      <div>
+        <h1 style="font-size:1.2rem; font-weight:700;" id="feedTitle">โพสต์ทั้งหมด</h1>
+        <p style="font-size:13px; color:var(--text-muted);" id="feedSub">อ่าน แชร์ และแลกเปลี่ยนความคิดเห็น</p>
+      </div>
+      <button class="btn-primary-sm" onclick="window.location.href='create-post.html'" id="createBtn" style="display:none">
+        <i class="bi bi-plus-lg"></i> สร้างโพสต์
+      </button>
+    </div>
+
+    <!-- Filter tags -->
+    <div class="tags-wrap" id="filterTags"></div>
+
+    <!-- Sort bar -->
+    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+      <span style="font-size:13px; color:var(--text-muted);">เรียงโดย:</span>
+      <button class="filter-tag active" id="sortLatest" onclick="setSort('latest')">ล่าสุด</button>
+      <button class="filter-tag" id="sortLikes" onclick="setSort('likes')">ยอดนิยม</button>
+    </div>
+
+   <!-- Post list -->
+<div id="postList">
+  <!-- Skeleton loading -->
+  <div id="skeletonLoader">
+    <div class="sk-post">
+      <div class="sk-row">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line short" style="flex:1;height:12px;"></div>
+      </div>
+      <div class="skeleton skeleton-title" style="margin-bottom:8px;"></div>
+      <div class="skeleton skeleton-line full"></div>
+      <div class="skeleton skeleton-line medium"></div>
+      <div class="sk-row" style="margin-top:10px;gap:14px;">
+        <div class="skeleton skeleton-line" style="width:48px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+      </div>
+    </div>
+    <div class="sk-post">
+      <div class="sk-row">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line short" style="flex:1;height:12px;"></div>
+      </div>
+      <div class="skeleton skeleton-title" style="margin-bottom:8px;"></div>
+      <div class="skeleton skeleton-line full"></div>
+      <div class="skeleton skeleton-line medium"></div>
+      <div class="sk-row" style="margin-top:10px;gap:14px;">
+        <div class="skeleton skeleton-line" style="width:48px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+      </div>
+    </div>
+    <div class="sk-post">
+      <div class="sk-row">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line short" style="flex:1;height:12px;"></div>
+      </div>
+      <div class="skeleton skeleton-title" style="margin-bottom:8px;"></div>
+      <div class="skeleton skeleton-line full"></div>
+      <div class="skeleton skeleton-line medium"></div>
+      <div class="sk-row" style="margin-top:10px;gap:14px;">
+        <div class="skeleton skeleton-line" style="width:48px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+    </div>
+
+    <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
+      <button class="btn-outline" id="loadMoreBtn" onclick="loadMore()">
+        <i class="bi bi-arrow-down-circle"></i> โหลดเพิ่ม
+      </button>
+    </div>
+  </main>
+
+  <!-- Right panel -->
+  <aside class="right-panel">
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header-custom"><i class="bi bi-fire" style="color:#f97316"></i> Trending</div>
+      <div class="card-body" id="trendingWidget">
+        <div class="skeleton skeleton-line full" style="margin-bottom:8px;height:13px;"></div>
+        <div class="skeleton skeleton-line medium" style="margin-bottom:8px;height:13px;"></div>
+        <div class="skeleton skeleton-line full" style="margin-bottom:8px;height:13px;"></div>
+      </div>
+    </div>
+    <div class="card" id="statsCard" style="display:none;">
+      <div class="card-header-custom"><i class="bi bi-person-circle" style="color:var(--primary)"></i> บัญชีของคุณ</div>
+      <div class="card-body" id="profileWidget"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+/* ═══════════════════════════════════════
+   State
+═══════════════════════════════════════ */
+let allPosts      = [];
+let filteredPosts = [];
+let displayedCount = 0;
+const PAGE_SIZE    = 10;
+let currentCategory = null;
+let currentSort     = 'latest';
+let searchTimer     = null;
+let categories      = [];
+
+/* ═══════════════════════════════════════
+   Utility
+═══════════════════════════════════════ */
+function toast(msg, type = '') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'เมื่อกี้';
+  if (m < 60) return `${m} นาทีที่แล้ว`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ชั่วโมงที่แล้ว`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} วันที่แล้ว`;
+  return new Date(dateStr).toLocaleDateString('th-TH');
+}
+
+function initials(name) { return name ? name.slice(0, 2).toUpperCase() : '??'; }
+
+function stringToColor(str) {
+  if (!str) return '#2563eb';
+  const palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#dc2626','#db2777'];
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ═══════════════════════════════════════
+   Navbar
+═══════════════════════════════════════ */
+function renderNavbar() {
+  const el = document.getElementById('navbarActions');
+  if (api.isLoggedIn()) {
+    const user = api.getUser();
+    document.getElementById('createBtn').style.display = 'flex';
+    if (user?.role === 'admin') document.getElementById('adminSection').style.display = 'block';
+    el.innerHTML = `
+      <div style="position:relative; margin-right:4px;">
+        <button class="dark-toggle" id="notifBtn" onclick="toggleNotifMenu()" style="position:relative; padding:5px 10px;">
+          <i class="bi bi-bell-fill"></i>
+          <span id="notifBadge" style="display:none; position:absolute; top:-4px; right:-4px; background:#e11d48; color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1;"></span>
+        </button>
+        <div id="notifMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-md); width:300px; z-index:300; overflow:hidden; backdrop-filter:var(--glass-blur);">
+          <div style="padding:10px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:700;">การแจ้งเตือน</span>
+            <a href="notifications.html" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">ดูทั้งหมด &rarr;</a>
+          </div>
+          <div id="notifList" style="max-height:320px; overflow-y:auto; padding:4px 0;"></div>
+        </div>
+      </div>
+      <div style="position:relative;">
+        <div class="avatar-sm" onclick="toggleUserMenu()" id="userAvatar" style="cursor:pointer;">${initials(user?.username)}</div>
+        <div class="dropdown-menu-custom" id="userMenu" style="display:none;">
+          <div style="padding:10px 14px; border-bottom:1px solid var(--border);">
+            <p style="font-size:13px; font-weight:700;">${user?.username}</p>
+            <p style="font-size:12px; color:var(--text-muted);">${user?.email}</p>
+          </div>
+          <div class="dropdown-item-custom" onclick="window.location.href='profile.html'"><i class="bi bi-person"></i> โปรไฟล์ของฉัน</div>
+          <div class="dropdown-item-custom" onclick="window.location.href='create-post.html'"><i class="bi bi-plus-circle"></i> สร้างโพสต์</div>
+          ${user?.role === 'admin' ? '<div class="dropdown-item-custom" onclick="window.location.href=\'admin.html\'"><i class="bi bi-shield-check"></i> Admin Panel</div>' : ''}
+          <div class="dropdown-item-custom danger" onclick="api.logout()"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</div>
+        </div>
+      </div>`;
+    renderProfileWidget(user);
+  } else {
+    el.innerHTML = `
+      <button class="btn-ghost" onclick="window.location.href='login.html'"><i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ</button>
+      <button class="btn-primary-sm" onclick="window.location.href='register.html'"><i class="bi bi-person-plus"></i> สมัครสมาชิก</button>`;
+  }
+}
+
+function toggleUserMenu() {
+  const m = document.getElementById('userMenu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  const m = document.getElementById('userMenu');
+  if (m && !m.contains(e.target) && !document.getElementById('userAvatar')?.contains(e.target)) {
+    m.style.display = 'none';
+  }
+});
+
+function renderProfileWidget(user) {
+  const el = document.getElementById('statsCard');
+  const pw = document.getElementById('profileWidget');
+  if (!user) return;
+  el.style.display = 'block';
+  pw.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.75rem;">
+      <div class="avatar-sm" style="width:40px;height:40px;font-size:16px;">${initials(user.username)}</div>
+      <div>
+        <p style="font-weight:700; font-size:14px;">${user.username}</p>
+        <p style="font-size:12px; color:var(--text-muted);">${user.role === 'admin' ? '👑 Admin' : 'สมาชิก'}</p>
+      </div>
+    </div>
+    <button class="btn-outline" style="width:100%; font-size:13px; padding:7px;" onclick="window.location.href='create-post.html'">
+      <i class="bi bi-plus-lg"></i> สร้างโพสต์ใหม่
+    </button>`;
+}
+
+/* ═══════════════════════════════════════
+   Categories
+═══════════════════════════════════════ */
+async function loadCategories() {
+  try {
+    const data = await api.get('/categories');
+    categories = Array.isArray(data) ? data : (data.categories || []);
+    renderCategorySidebar();
+    renderFilterTags();
+  } catch {}
+}
+
+function renderCategorySidebar() {
+  const el = document.getElementById('categorySidebar');
+  el.innerHTML = categories.map(c => `
+    <button class="sidebar-item${currentCategory === c.id ? ' active' : ''}" onclick="setFilter(${c.id}, '${c.name}')">
+      <span class="category-dot" style="background:${c.color || '#6366f1'}"></span>
+      ${c.name}
+    </button>`).join('');
+}
+
+function renderFilterTags() {
+  const el = document.getElementById('filterTags');
+  el.innerHTML = categories.map(c => `
+    <button class="filter-tag${currentCategory === c.id ? ' active' : ''}" onclick="setFilter(${c.id}, '${c.name}')"
+      style="${currentCategory === c.id ? `background:${c.color};border-color:${c.color}` : ''}">
+      ${c.name}
+    </button>`).join('');
+}
+
+function setFilter(catId, catName = null) {
+  currentCategory = catId;
+  document.getElementById('feedTitle').textContent = catName || 'โพสต์ทั้งหมด';
+  document.getElementById('feedSub').textContent = catName ? `หมวดหมู่: ${catName}` : 'อ่าน แชร์ และแลกเปลี่ยนความคิดเห็น';
+  renderCategorySidebar();
+  renderFilterTags();
+  applyFilter();
+}
+
+function setSort(type) {
+  currentSort = type;
+  document.getElementById('sortLatest').classList.toggle('active', type === 'latest');
+  document.getElementById('sortLikes').classList.toggle('active', type === 'likes');
+  applyFilter();
+}
+
+/* ═══════════════════════════════════════
+   Posts
+═══════════════════════════════════════ */
+async function loadPosts() {
+  try {
+    const data = await api.get('/posts');
+    allPosts = data.posts || [];
+
+    // โหลด bookmarks ของ user มาเก็บไว้
+    if (api.isLoggedIn()) {
+      try {
+        const bm = await api.getBookmarks();
+        const bmIds = new Set((bm.posts || []).map(p => p.id));
+        allPosts.forEach(p => p.user_bookmarked = bmIds.has(p.id));
+      } catch {}
+    }
+
+    const sk = document.getElementById('skeletonLoader');
+    if (sk) sk.remove();
+    await loadTrendingWidget();
+    applyFilter();
+  } catch(e) {
+    const sk = document.getElementById('skeletonLoader');
+    if (sk) sk.remove();
+    document.getElementById('postList').innerHTML = `
+      <div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> ไม่สามารถโหลดโพสต์ได้: ${e.message}</div>`;
+  }
+}
+
+function applyFilter() {
+  let posts = [...allPosts];
+  if (currentCategory) posts = posts.filter(p => p.category_id === currentCategory);
+  if (currentSort === 'likes') posts.sort((a, b) => (b.like_count || b.likes || 0) - (a.like_count || a.likes || 0));
+  filteredPosts = posts;
+  displayedCount = 0;
+  document.getElementById('postList').innerHTML = '';
+  renderMore();
+}
+
+function renderMore() {
+  const slice = filteredPosts.slice(displayedCount, displayedCount + PAGE_SIZE);
+  slice.forEach((p, i) => appendPostCard(p, displayedCount + i));
+  displayedCount += slice.length;
+  const lmWrap = document.getElementById('loadMoreWrap');
+  lmWrap.style.display = displayedCount < filteredPosts.length ? 'block' : 'none';
+  if (filteredPosts.length === 0) {
+    document.getElementById('postList').innerHTML = `
+      <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <p>ยังไม่มีโพสต์ในหมวดหมู่นี้</p>
+      </div>`;
+  }
+}
+
+function loadMore() {
+  const btn = document.getElementById('loadMoreBtn');
+  btn.classList.add('loading');
+  btn.querySelector('i').className = 'bi bi-arrow-clockwise';
+  setTimeout(() => {
+    renderMore();
+    btn.classList.remove('loading');
+    btn.querySelector('i').className = 'bi bi-arrow-down-circle';
+  }, 300);
+}
+
+function appendPostCard(post, index = 0) {
+  const el = document.getElementById('postList');
+  const liked = post.user_liked;
+  const cat = categories.find(c => c.id === post.category_id);
+  const catColor = cat?.color || '#6366f1';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'post-card-wrap';
+  wrap.style.animationDelay = `${Math.min(index, 6) * 60}ms`;
+  wrap.style.marginBottom = '0.75rem';
+
+  wrap.innerHTML = `
+    <div class="post-card" onclick="window.location.href='post.html?id=${post.id}'" style="cursor:pointer; position:relative;">
+      <div class="post-meta">
+        <div class="avatar-xs" style="background:${stringToColor(post.username)}">${initials(post.username)}</div>
+        <span class="post-author">${escHtml(post.username)}</span>
+        <span class="post-time">${timeAgo(post.created_at)}</span>
+        ${cat ? `<span class="category-badge" style="background:${catColor}20; color:${catColor};">${cat.name}</span>` : ''}
+      </div>
+      <h2 class="post-title">${escHtml(post.title)}</h2>
+      ${post.image ? `
+        <div style="margin:0.5rem 0; border-radius:10px; overflow:hidden; max-height:200px;">
+          <img src="${post.image.startsWith('http') ? post.image : 'https://webboard-project-production.up.railway.app' + post.image}"
+               alt="" style="width:100%; max-height:200px; object-fit:cover; display:block; transition:transform 0.35s ease;"
+               onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"
+               onclick="event.stopPropagation(); window.location.href='post.html?id=${post.id}'">
+        </div>` : ''}
+      <p class="post-excerpt">${escHtml(post.content)}</p>
+      <div class="post-footer">
+        <button class="like-btn${liked ? ' liked' : ''}"
+          onclick="event.stopPropagation(); toggleLike(${post.id}, this)"
+          data-liked="${liked ? '1' : '0'}"
+          data-count="${post.like_count || post.likes || 0}"
+          style="position:relative;">
+          <i class="bi bi-heart${liked ? '-fill' : ''}"></i>
+          <span class="like-count">${post.like_count || post.likes || 0}</span>
+        </button>
+        <span class="post-stat"><i class="bi bi-chat"></i> ${post.comment_count || 0}</span>
+        <span class="post-stat"><i class="bi bi-eye"></i> ${post.views || 0}</span>
+       ${api.isLoggedIn() ? `
+<button class="like-btn${post.user_bookmarked ? ' liked' : ''}" id="bm-${post.id}"
+  onclick="event.stopPropagation(); toggleBookmark(${post.id}, this)"
+  style="margin-left:auto;">
+  <i class="bi bi-bookmark${post.user_bookmarked ? '-fill' : ''}"></i>
+</button>` : ''}
+      </div>
+    </div>`;
+  el.appendChild(wrap);
+}
+
+/* ═══════════════════════════════════════
+   Like with micro-interaction
+═══════════════════════════════════════ */
+async function toggleLike(postId, btn) {
+  if (!api.isLoggedIn()) { toast('กรุณาเข้าสู่ระบบก่อน', 'error'); return; }
+  try {
+    // Heart pop animation
+    btn.querySelector('i').classList.remove('pop');
+    void btn.querySelector('i').offsetWidth; // reflow
+    btn.querySelector('i').classList.add('pop');
+
+    const data = await api.post(`/posts/${postId}/like`, {});
+    const isLiked = data.liked;
+
+    btn.dataset.liked = isLiked ? '1' : '0';
+    btn.classList.toggle('liked', isLiked);
+    btn.querySelector('i').className = `bi bi-heart${isLiked ? '-fill' : ''} pop`;
+    btn.querySelector('.like-count').textContent = data.like_count;
+
+    // Float heart
+    if (isLiked) {
+      const hf = document.createElement('span');
+      hf.className = 'heart-float';
+      hf.textContent = '♥';
+      hf.style.left = (btn.offsetLeft + 4) + 'px';
+      hf.style.top  = (btn.offsetTop  - 4) + 'px';
+      btn.parentElement.appendChild(hf);
+      setTimeout(() => hf.remove(), 560);
+    }
+
+    const post = allPosts.find(p => p.id === postId);
+    if (post) { post.like_count = data.like_count; post.user_liked = isLiked; }
+  } catch(e) { toast(e.message, 'error'); }
+}
+async function toggleBookmark(postId, btn) {
+  try {
+    const data = await api.bookmark(postId);
+    const icon = btn.querySelector('i');
+    icon.className = data.bookmarked ? 'bi bi-bookmark-fill' : 'bi bi-bookmark';
+    btn.classList.toggle('liked', data.bookmarked);
+    toast(data.bookmarked ? 'บันทึกแล้ว ✨' : 'ยกเลิกบันทึกแล้ว', data.bookmarked ? 'success' : '');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+/* ═══════════════════════════════════════
+   Trending
+═══════════════════════════════════════ */
+async function loadTrending() {
+  document.getElementById('feedTitle').textContent = '🔥 Trending';
+  document.getElementById('feedSub').textContent = 'โพสต์ยอดนิยม';
+  currentCategory = null;
+  renderCategorySidebar();
+  try {
+    const data = await api.get('/posts/trending');
+    filteredPosts = Array.isArray(data) ? data : (data.posts || []);
+    displayedCount = 0;
+    document.getElementById('postList').innerHTML = '';
+    renderMore();
+  } catch {}
+}
+
+async function loadTrendingWidget() {
+  try {
+    const data = await api.get('/posts/trending');
+    const tw = document.getElementById('trendingWidget');
+    const posts = data.posts?.slice(0, 5) || [];
+    if (!posts.length) {
+      tw.innerHTML = '<p style="font-size:13px; color:var(--text-muted)">ยังไม่มีข้อมูล</p>';
+      return;
+    }
+    tw.innerHTML = posts.map((p, i) => `
+      <div class="trending-item" onclick="window.location.href='post.html?id=${p.id}'">
+        <span class="trending-num">${i + 1}</span>
+        <div>
+          <p class="trending-title">${escHtml(p.title)}</p>
+          <p class="trending-stat"><i class="bi bi-heart" style="font-size:11px"></i> ${p.like_count || 0} likes · ${escHtml(p.username)}</p>
+        </div>
+      </div>`).join('');
+  } catch {}
+}
+
+/* ═══════════════════════════════════════
+   Search
+═══════════════════════════════════════ */
+document.getElementById('searchInput').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  const q = this.value.trim().toLowerCase();
+  searchTimer = setTimeout(() => {
+    if (!q) { applyFilter(); return; }
+    filteredPosts = allPosts.filter(p =>
+      p.title?.toLowerCase().includes(q) ||
+      p.content?.toLowerCase().includes(q) ||
+      p.username?.toLowerCase().includes(q)
+    );
+    displayedCount = 0;
+    document.getElementById('postList').innerHTML = '';
+    document.getElementById('feedTitle').textContent = `ผลลัพธ์: "${q}"`;
+    document.getElementById('feedSub').textContent = `พบ ${filteredPosts.length} โพสต์`;
+    renderMore();
+  }, 300);
+});
+
+/* ═══════════════════════════════════════
+   Notifications
+═══════════════════════════════════════ */
+async function loadNotifications() {
+  if (!api.isLoggedIn()) return;
+  try {
+    const data = await api.get('/notifications');
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    if (data.unread > 0) {
+      badge.textContent = data.unread > 9 ? '9+' : data.unread;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+    const list = document.getElementById('notifList');
+    if (!list) return;
+    if (!data.notifications.length) {
+      list.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:13px;"><i class="bi bi-bell-slash" style="font-size:2rem; display:block; margin-bottom:0.5rem;"></i>ยังไม่มีการแจ้งเตือน</div>';
+      return;
+    }
+    list.innerHTML = data.notifications.map(n => `
+      <div onclick="window.location.href='post.html?id=${n.post_id}'"
+        style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); background:${n.is_read ? 'transparent' : 'var(--primary-light)'}; display:flex; gap:10px; align-items:flex-start; transition:background 0.2s;"
+        onmouseover="this.style.background='var(--primary-light)'" onmouseout="this.style.background='${n.is_read ? 'transparent' : 'var(--primary-light)'}'">
+        <div style="width:32px; height:32px; border-radius:50%; background:${n.type === 'like' ? '#e11d48' : 'var(--primary)'}; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;">
+          <i class="bi bi-${n.type === 'like' ? 'heart-fill' : 'chat-fill'}"></i>
+        </div>
+        <div>
+          <p style="font-size:13px; margin:0; color:var(--text);"><b>${escHtml(n.from_username)}</b> ${n.type === 'like' ? 'ถูกใจโพสต์' : 'แสดงความคิดเห็นใน'} "${escHtml(n.post_title || 'โพสต์ของคุณ')}"</p>
+          <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0;">${timeAgo(n.created_at)}</p>
+        </div>
+      </div>`).join('');
+  } catch {}
+}
+
+function toggleNotifMenu() {
+  const m = document.getElementById('notifMenu');
+  if (!m) return;
+  const isOpen = m.style.display !== 'none';
+  m.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) loadNotifications();
+}
+
+async function markAllRead() {
+  try {
+    await api.put('/notifications/read-all', {});
+    document.getElementById('notifBadge').style.display = 'none';
+    loadNotifications();
+  } catch {}
+}
+
+document.addEventListener('click', e => {
+  const menu = document.getElementById('notifMenu');
+  const btn  = document.getElementById('notifBtn');
+  if (menu && !menu.contains(e.target) && !btn?.contains(e.target)) menu.style.display = 'none';
+});
+
+/* ═══════════════════════════════════════
+   Dark Mode
+═══════════════════════════════════════ */
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('darkIcon').className = isDark ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+(function() {
+  const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', saved);
+  const ic = document.getElementById('darkIcon');
+  if (saved === 'dark' && ic) ic.className = 'bi bi-sun-fill';
+})();
+
+/* ═══════════════════════════════════════
+   Init
+═══════════════════════════════════════ */
+renderNavbar();
+if (api.isLoggedIn()) loadNotifications();
+loadCategories();
+loadPosts();
+</script>
+</body>
+</html>

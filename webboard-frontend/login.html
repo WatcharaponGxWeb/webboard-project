@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — เข้าสู่ระบบ</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <i class="bi bi-layout-text-sidebar-reverse"></i>
+      <span>WebBoard</span>
+    </div>
+    <h1 class="auth-title">เข้าสู่ระบบ</h1>
+    <p class="auth-sub">ยินดีต้อนรับกลับมา</p>
+
+    <div id="alertBox" style="display:none"></div>
+
+    <div class="form-group">
+      <label class="form-label">อีเมล</label>
+      <input type="email" id="email" class="form-control" placeholder="your@email.com" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">รหัสผ่าน</label>
+      <div style="position:relative;">
+        <input type="password" id="password" class="form-control" placeholder="รหัสผ่านของคุณ" style="padding-right:40px" />
+        <button onclick="togglePwd()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;" id="eyeBtn">
+          <i class="bi bi-eye" id="eyeIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">
+      <i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ
+    </button>
+
+    <div class="auth-divider"><span>หรือ</span></div>
+
+    <p style="text-align:center; font-size:14px; color:var(--text-muted);">
+      ยังไม่มีบัญชี? <a href="register.html" class="auth-link">สมัครสมาชิก</a>
+    </p>
+    <p style="text-align:center; font-size:14px; color:var(--text-muted); margin-top:6px;">
+      <a href="index.html" class="auth-link" style="color:var(--text-muted)">
+        <i class="bi bi-arrow-left" style="font-size:12px"></i> กลับหน้าหลัก
+      </a>
+    </p>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+if (api.isLoggedIn()) window.location.href = 'index.html';
+
+function togglePwd() {
+  const inp = document.getElementById('password');
+  const ic = document.getElementById('eyeIcon');
+  if (inp.type === 'password') { inp.type = 'text'; ic.className = 'bi bi-eye-slash'; }
+  else { inp.type = 'password'; ic.className = 'bi bi-eye'; }
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('alertBox');
+  el.style.display = 'flex';
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<i class="bi bi-${type==='danger'?'exclamation-circle':'check-circle'}"></i> ${msg}`;
+}
+
+async function doLogin() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('loginBtn');
+
+  if (!email || !password) { showAlert('กรุณากรอกข้อมูลให้ครบ', 'danger'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></span> กำลังเข้าสู่ระบบ...';
+
+  try {
+    const data = await api.post('/auth/login', { email, password });
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    showAlert('เข้าสู่ระบบสำเร็จ! กำลังพาไปหน้าหลัก...', 'success');
+    setTimeout(() => window.location.href = 'index.html', 800);
+  } catch(e) {
+    showAlert(e.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ';
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebBoard — การแจ้งเตือน</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* ── Page layout ── */
+    .notif-page {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+
+    /* ── Page header ── */
+    .notif-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+    }
+    .notif-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .notif-header h1 i {
+      color: var(--primary);
+      font-size: 22px;
+    }
+
+    /* ── Filter tabs ── */
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .filter-tab {
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+    }
+    .filter-tab:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .filter-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .filter-tab .count {
+      background: rgba(255,255,255,0.25);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .filter-tab:not(.active) .count {
+      background: var(--border);
+      color: var(--text-muted);
+    }
+
+    /* ── Toolbar ── */
+    .notif-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .notif-count-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .btn-mark-all {
+      font-size: 13px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-mark-all:hover { opacity: 0.8; }
+
+    /* ── Notification card ── */
+    .notif-card {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.22s;
+      position: relative;
+    }
+    .notif-card:hover {
+      border-color: rgba(99,102,241,0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59,130,246,0.12);
+    }
+    .notif-card.unread {
+      border-left: 3px solid var(--primary);
+      background: var(--primary-light, rgba(99,102,241,0.06));
+    }
+    .notif-card.unread::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 8px;
+      height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+    }
+
+    /* ── Icon badge ── */
+    .notif-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+      color: #fff;
+    }
+    .notif-icon.like    { background: linear-gradient(135deg, #e11d48, #f43f5e); }
+    .notif-icon.comment { background: linear-gradient(135deg, var(--primary), #818cf8); }
+    .notif-icon.follow  { background: linear-gradient(135deg, #0ea5e9, #38bdf8); }
+
+    /* ── Content ── */
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-text {
+      font-size: 14px;
+      color: var(--text);
+      margin: 0 0 4px;
+      line-height: 1.5;
+    }
+    .notif-text b { color: var(--text); }
+    .notif-post-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin: 0 0 6px;
+    }
+    .notif-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .notif-time {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── Mark read button ── */
+    .btn-read-one {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-read-one:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* ── Empty state ── */
+    .notif-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .notif-empty i {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+    .notif-empty p { font-size: 15px; margin: 0; }
+
+    /* ── Skeleton loading ── */
+    .skeleton {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .skel-circle {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+      animation: shimmer 1.3s infinite;
+    }
+    .skel-lines { flex: 1; }
+    .skel-line {
+      height: 12px;
+      border-radius: 6px;
+      background: var(--border);
+      animation: shimmer 1.3s infinite;
+      margin-bottom: 8px;
+    }
+    .skel-line.short { width: 40%; }
+    @keyframes shimmer {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    /* ── Back button ── */
+    .btn-back {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-back:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* ── Unread badge in header ── */
+    .unread-badge {
+      background: #e11d48;
+      color: #fff;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar placeholder -->
+<nav class="navbar" style="position:sticky; top:0; z-index:200;">
+  <div class="container" style="display:flex; align-items:center; justify-content:space-between; padding:0 16px; height:56px;">
+    <a href="index.html" style="display:flex; align-items:center; gap:8px; text-decoration:none; color:var(--text); font-weight:700; font-size:18px;">
+      <i class="bi bi-grid-3x3-gap-fill" style="color:var(--primary);"></i> WebBoard
+    </a>
+    <div id="navRight"></div>
+  </div>
+</nav>
+
+<div class="notif-page">
+
+  <!-- Header -->
+  <div class="notif-header">
+    <h1>
+      <i class="bi bi-bell-fill"></i>
+      การแจ้งเตือน
+      <span class="unread-badge" id="unreadBadge" style="display:none;"></span>
+    </h1>
+    <button class="btn-back" onclick="history.back()">
+      <i class="bi bi-arrow-left"></i> กลับ
+    </button>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="filter-tabs">
+    <button class="filter-tab active" data-filter="all" onclick="setFilter('all', this)">
+      <i class="bi bi-grid"></i> ทั้งหมด
+      <span class="count" id="count-all">0</span>
+    </button>
+    <button class="filter-tab" data-filter="like" onclick="setFilter('like', this)">
+      <i class="bi bi-heart-fill"></i> ถูกใจ
+      <span class="count" id="count-like">0</span>
+    </button>
+    <button class="filter-tab" data-filter="comment" onclick="setFilter('comment', this)">
+      <i class="bi bi-chat-fill"></i> ความคิดเห็น
+      <span class="count" id="count-comment">0</span>
+    </button>
+    <button class="filter-tab" data-filter="follow" onclick="setFilter('follow', this)">
+      <i class="bi bi-person-plus-fill"></i> ติดตาม
+      <span class="count" id="count-follow">0</span>
+    </button>
+    <button class="filter-tab" data-filter="unread" onclick="setFilter('unread', this)">
+      <i class="bi bi-circle-fill" style="font-size:10px;"></i> ยังไม่อ่าน
+      <span class="count" id="count-unread">0</span>
+    </button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="notif-toolbar">
+    <span class="notif-count-text" id="resultCount"></span>
+    <button class="btn-mark-all" onclick="markAllRead()">
+      <i class="bi bi-check2-all"></i> อ่านทั้งหมด
+    </button>
+  </div>
+
+  <!-- List -->
+  <div id="notifList">
+    <!-- Skeleton -->
+    <div class="skeleton"><div class="skel-circle"></div><div class="skel-lines"><div class="skel-line"></div><div class="skel-line short"></div></div></div>
+    <div class="skeleton"><div class="skel-circle"></div><div class="skel-lines"><div class="skel-line"></div><div class="skel-line short"></div></div></div>
+    <div class="skeleton"><div class="skel-circle"></div><div class="skel-lines"><div class="skel-line"></div><div class="skel-line short"></div></div></div>
+  </div>
+
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+/* ── Theme init ── */
+(function() {
+  const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+/* ── Auth guard ── */
+if (!api.isLoggedIn()) window.location.href = 'login.html';
+
+/* ── Nav right ── */
+const user = api.getUser();
+document.getElementById('navRight').innerHTML = `
+  <div style="display:flex; align-items:center; gap:10px;">
+    <a href="index.html" style="font-size:13px; color:var(--text-muted); text-decoration:none;">หน้าหลัก</a>
+    <div class="avatar-sm" style="cursor:pointer;" onclick="window.location.href='profile.html'">${(user?.username||'?')[0].toUpperCase()}</div>
+  </div>`;
+
+/* ── State ── */
+let allNotifs = [];
+let currentFilter = 'all';
+
+/* ── Helpers ── */
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'เมื่อกี้';
+  if (diff < 3600) return `${Math.floor(diff/60)} นาทีที่แล้ว`;
+  if (diff < 86400) return `${Math.floor(diff/3600)} ชั่วโมงที่แล้ว`;
+  if (diff < 604800) return `${Math.floor(diff/86400)} วันที่แล้ว`;
+  return new Date(dateStr).toLocaleDateString('th-TH');
+}
+
+function typeLabel(type) {
+  if (type === 'like') return 'ถูกใจโพสต์';
+  if (type === 'comment') return 'แสดงความคิดเห็นใน';
+  if (type === 'follow') return 'เริ่มติดตามคุณ';
+  return '';
+}
+function typeIcon(type) {
+  if (type === 'like') return 'heart-fill';
+  if (type === 'comment') return 'chat-fill';
+  return 'person-plus-fill';
+}
+
+/* ── Filter ── */
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+
+function getFiltered() {
+  if (currentFilter === 'all') return allNotifs;
+  if (currentFilter === 'unread') return allNotifs.filter(n => !n.is_read);
+  return allNotifs.filter(n => n.type === currentFilter);
+}
+
+/* ── Render ── */
+function renderList() {
+  const list = document.getElementById('notifList');
+  const filtered = getFiltered();
+  document.getElementById('resultCount').textContent = `แสดง ${filtered.length} รายการ`;
+
+  if (!filtered.length) {
+    list.innerHTML = `
+      <div class="notif-empty">
+        <i class="bi bi-bell-slash"></i>
+        <p>${currentFilter === 'unread' ? 'ไม่มีการแจ้งเตือนที่ยังไม่อ่าน' : 'ยังไม่มีการแจ้งเตือน'}</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(n => `
+    <div class="notif-card ${n.is_read ? '' : 'unread'}" id="notif-${n.id}">
+      <div class="notif-icon ${n.type}" onclick="goToPost(${n.post_id})">
+        <i class="bi bi-${typeIcon(n.type)}"></i>
+      </div>
+      <div class="notif-body" onclick="goToPost(${n.post_id})">
+        <p class="notif-text">
+          <b>${escHtml(n.from_username)}</b> ${typeLabel(n.type)}
+          ${n.type !== 'follow' ? `"<span style='color:var(--primary)'>${escHtml(n.post_title || 'โพสต์ของคุณ')}</span>"` : ''}
+        </p>
+        <div class="notif-meta">
+          <span class="notif-time"><i class="bi bi-clock" style="font-size:10px;"></i> ${timeAgo(n.created_at)}</span>
+          ${!n.is_read ? `<button class="btn-read-one" onclick="event.stopPropagation(); markOneRead(${n.id})">ทำเครื่องหมายว่าอ่านแล้ว</button>` : `<span style="font-size:11px; color:var(--text-muted);"><i class="bi bi-check2"></i> อ่านแล้ว</span>`}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+/* ── Update counts ── */
+function updateCounts() {
+  document.getElementById('count-all').textContent     = allNotifs.length;
+  document.getElementById('count-like').textContent    = allNotifs.filter(n => n.type === 'like').length;
+  document.getElementById('count-comment').textContent = allNotifs.filter(n => n.type === 'comment').length;
+  document.getElementById('count-follow').textContent  = allNotifs.filter(n => n.type === 'follow').length;
+  const unread = allNotifs.filter(n => !n.is_read).length;
+  document.getElementById('count-unread').textContent  = unread;
+  const badge = document.getElementById('unreadBadge');
+  if (unread > 0) { badge.textContent = `${unread} ใหม่`; badge.style.display = 'inline'; }
+  else badge.style.display = 'none';
+}
+
+/* ── Load ── */
+async function loadNotifications() {
+  try {
+    const data = await api.get('/notifications/all');
+    allNotifs = data.notifications || [];
+    updateCounts();
+    renderList();
+  } catch(e) {
+    document.getElementById('notifList').innerHTML = `
+      <div class="notif-empty">
+        <i class="bi bi-wifi-off"></i>
+        <p>โหลดการแจ้งเตือนไม่ได้ กรุณาลองใหม่</p>
+      </div>`;
+  }
+}
+
+/* ── Mark one read ── */
+async function markOneRead(id) {
+  try {
+    await api.put(`/notifications/${id}/read`, {});
+    const n = allNotifs.find(x => x.id === id);
+    if (n) n.is_read = 1;
+    updateCounts();
+    renderList();
+  } catch {}
+}
+
+/* ── Mark all read ── */
+async function markAllRead() {
+  try {
+    await api.put('/notifications/read-all', {});
+    allNotifs.forEach(n => n.is_read = 1);
+    updateCounts();
+    renderList();
+  } catch {}
+}
+
+/* ── Navigate to post ── */
+function goToPost(postId) {
+  if (postId) window.location.href = `post.html?id=${postId}`;
+}
+
+loadNotifications();
+</script>
+</body>
+</html>
