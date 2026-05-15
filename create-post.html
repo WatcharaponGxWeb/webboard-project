@@ -87,7 +87,7 @@ if (!api.isLoggedIn()) window.location.href = 'login.html';
 
 const editId = new URLSearchParams(location.search).get('id');
 let selectedFile = null;
-let existingImage = null; // เก็บชื่อไฟล์รูปเดิม
+let existingImage = null;
 
 function toast(msg, type='') {
   const c = document.getElementById('toastContainer');
@@ -124,7 +124,6 @@ function toggleMenu() {
 async function loadCategories() {
   try {
     const data = await api.get('/categories');
-    // รองรับทั้ง array ตรงๆ และ { categories: [...] }
     const cats = Array.isArray(data) ? data : (data.categories || data.data || []);
     const sel = document.getElementById('category');
     cats.forEach(c => {
@@ -145,20 +144,17 @@ async function loadPostForEdit() {
   document.getElementById('submitIcon').className = 'bi bi-check2';
   try {
     const data = await api.get(`/posts/${editId}`);
-    // รองรับทั้ง data.post และ data ตรงๆ
     const post = data.post || data;
     document.getElementById('title').value = post.title || '';
     document.getElementById('content').value = post.content || '';
     updateCounts();
-    // รอ categories โหลดเสร็จก่อนแล้วค่อย set
     setTimeout(() => {
       if (post.category_id) document.getElementById('category').value = post.category_id;
     }, 600);
-    // โหลดรูปเดิม
     if (post.image) {
       existingImage = post.image;
       document.getElementById('imagePreview').style.display = 'block';
-      document.getElementById('previewImg').src = `https://webboard-project-production.up.railway.app/uploads/${post.image}`;
+      document.getElementById('previewImg').src = post.image;
     }
   } catch(e) {
     console.error('loadPostForEdit error:', e);
@@ -179,7 +175,7 @@ function handleFileSelect(input) {
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) { toast('ไฟล์ขนาดใหญ่เกินไป (สูงสุด 5MB)', 'error'); return; }
   selectedFile = file;
-  existingImage = null; // ล้างรูปเดิมเพราะมีรูปใหม่
+  existingImage = null;
   const reader = new FileReader();
   reader.onload = e => {
     document.getElementById('previewImg').src = e.target.result;
@@ -220,29 +216,18 @@ async function doSubmit() {
   document.getElementById('submitText').textContent = 'กำลังบันทึก...';
 
   try {
-    // ส่งเป็น FormData เพราะ server รับ multipart/form-data โดยตรง
     const fd = new FormData();
     fd.append('title', title);
     fd.append('content', content);
     if (category_id) fd.append('category_id', category_id);
     if (selectedFile) fd.append('image', selectedFile);
 
-    const url = editId
-      ? `https://webboard-project-production.up.railway.app/api/posts/${editId}`
-      : `https://webboard-project-production.up.railway.app/api/posts`;
-    const method = editId ? 'PUT' : 'POST';
-
-    const res = await fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${api.getToken()}` },
-      body: fd,
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'เกิดข้อผิดพลาด');
+    const data = editId
+      ? await api.putForm(`/posts/${editId}`, fd)
+      : await api.postForm(`/posts`, fd);
+    if (!data || data.error) throw new Error(data?.message || 'เกิดข้อผิดพลาด');
 
     toast(editId ? 'แก้ไขโพสต์สำเร็จ' : 'สร้างโพสต์สำเร็จ', 'success');
-    const newId = editId || data.postId || data.post_id || data.id;
     setTimeout(() => window.location.href = 'index.html', 800);
   } catch(e) {
     showAlert(e.message || 'เกิดข้อผิดพลาด', 'danger');
@@ -253,6 +238,10 @@ async function doSubmit() {
 
 renderNavbar();
 loadCategories().then(() => loadPostForEdit());
+(function() {
+  const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', saved);
+})();
 </script>
 </body>
 </html>

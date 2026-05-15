@@ -85,13 +85,20 @@
       <i class="bi bi-flag"></i> รายงาน
       <span id="reportsBadge" style="display:none; background:#e11d48; color:#fff; border-radius:20px; font-size:10px; font-weight:700; padding:1px 6px; margin-left:2px;"></span>
     </button>
+    <button class="tab-btn" id="tab-comments" onclick="switchTab('comments')">
+      <i class="bi bi-chat-dots"></i> ความคิดเห็น
+    </button>
+    <button class="tab-btn" id="tab-charts" onclick="switchTab('charts')">
+      <i class="bi bi-bar-chart-line"></i> กราฟ
+    </button>
   </div>
 
   <!-- Posts table -->
   <div id="panel-posts" class="card">
     <div class="card-header-custom" style="justify-content:space-between;">
       <span><i class="bi bi-file-text"></i> จัดการโพสต์</span>
-      <input type="text" id="searchPost" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterPosts(this.value)" />
+      <div style="display:flex;gap:6px;align-items:center;"><button onclick="exportCSV('posts')" class="export-btn"><i class="bi bi-download"></i> Export CSV</button>
+      <input type="text" id="searchPost" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterPosts(this.value)" /></div>
     </div>
     <div class="card-body" style="padding:0">
       <div class="table-wrap">
@@ -120,7 +127,8 @@
   <div id="panel-users" class="card" style="display:none;">
     <div class="card-header-custom" style="justify-content:space-between;">
       <span><i class="bi bi-people"></i> จัดการสมาชิก</span>
-      <input type="text" id="searchUser" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterUsers(this.value)" />
+      <div style="display:flex;gap:6px;align-items:center;"><button onclick="exportCSV('users')" class="export-btn"><i class="bi bi-download"></i> Export CSV</button>
+      <input type="text" id="searchUser" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterUsers(this.value)" /></div>
     </div>
     <div class="card-body" style="padding:0">
       <div class="table-wrap">
@@ -179,6 +187,55 @@
     </div>
   </div>
 
+  <!-- Comments panel -->
+  <div id="panel-comments" class="card" style="display:none;">
+    <div class="card-header-custom" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <span><i class="bi bi-chat-dots"></i> จัดการความคิดเห็น</span>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="searchComment" placeholder="ค้นหา..." class="form-control" style="width:200px;padding:5px 10px;font-size:13px;" oninput="filterComments(this.value)" />
+        <button onclick="exportCSV('comments')" style="padding:5px 12px;font-size:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="bi bi-download"></i> Export</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>เนื้อหา</th>
+              <th>ผู้เขียน</th>
+              <th>โพสต์</th>
+              <th>วันที่</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="commentsTableBody">
+            <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts panel -->
+  <div id="panel-charts" class="card" style="display:none;">
+    <div class="card-header-custom">
+      <span><i class="bi bi-bar-chart-line"></i> ภาพรวมระบบ</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+        <div>
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:1rem;color:var(--text-muted);">สัดส่วนเนื้อหา</h3>
+          <canvas id="chartPie" width="300" height="300"></canvas>
+        </div>
+        <div>
+          <h3 style="font-size:14px;font-weight:700;margin-bottom:1rem;color:var(--text-muted);">Top 5 โพสต์ยอดนิยม (Likes)</h3>
+          <canvas id="chartBar" width="300" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <style>
@@ -197,8 +254,11 @@
 .status-pending  { background: #fef3c7; color: #92400e; }
 .status-reviewed { background: #d1fae5; color: #065f46; }
 .status-dismissed { background: #f1f5f9; color: #64748b; }
+.export-btn { padding:5px 12px; font-size:12px; background:var(--primary); color:#fff; border:none; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
+.export-btn:hover { opacity:0.85; }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/js/api.js"></script>
 <script>
 // Dark mode
@@ -236,13 +296,16 @@ function formatDate(d) { return new Date(d).toLocaleDateString('th-TH', { year:'
 
 let allPostsData = [];
 let allUsersData = [];
+let allCommentsData = [];
 
 function switchTab(tab) {
-  ['posts','users','reports'].forEach(t => {
+  ['posts','users','reports','comments','charts'].forEach(t => {
     document.getElementById(`panel-${t}`).style.display = t === tab ? 'block' : 'none';
     document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
   });
   if (tab === 'reports') loadReports(document.getElementById('filterReportStatus').value);
+  if (tab === 'comments') loadAdminComments();
+  if (tab === 'charts') renderCharts();
 }
 
 async function loadStats() {
@@ -321,7 +384,12 @@ function renderUsersTable(users) {
       <td style="font-size:12px; color:var(--text-muted);">${formatDate(u.created_at)}</td>
       <td>
         ${u.id !== currentUser.id ? `
-          <button onclick="adminDeleteUser(${u.id}, '${escHtml(u.username)}')" style="padding:4px 8px; font-size:12px; background:#fef2f2; color:var(--danger); border-radius:6px; border:none; cursor:pointer;"><i class="bi bi-trash3"></i> ลบ</button>
+          <div style="display:flex;gap:4px;">
+            <button onclick="changeRole(${u.id}, '${u.role}', this)" style="padding:4px 8px; font-size:12px; background:${u.role==='admin'?'#eff6ff':'#fef3c7'}; color:${u.role==='admin'?'#1d4ed8':'#92400e'}; border-radius:6px; border:none; cursor:pointer;">
+              ${u.role==='admin' ? '<i class="bi bi-arrow-down-circle"></i> เป็น User' : '<i class="bi bi-arrow-up-circle"></i> เป็น Admin'}
+            </button>
+            <button onclick="adminDeleteUser(${u.id}, '${escHtml(u.username)}')" style="padding:4px 8px; font-size:12px; background:#fef2f2; color:var(--danger); border-radius:6px; border:none; cursor:pointer;"><i class="bi bi-trash3"></i></button>
+          </div>
         ` : '<span style="font-size:12px; color:var(--text-muted);">คุณ</span>'}
       </td>
     </tr>`).join('');
@@ -415,6 +483,153 @@ async function adminDeleteUser(userId, username) {
     document.getElementById('statUsers').textContent = allUsersData.length;
     toast('ลบสมาชิกสำเร็จ', 'success');
   } catch(e) { toast(e.message, 'error'); }
+}
+
+
+// ── Change Role ──────────────────────────────
+async function changeRole(userId, currentRole, btn) {
+  const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  const label = newRole === 'admin' ? 'Admin' : 'User';
+  if (!confirm(`เปลี่ยน role เป็น ${label}?`)) return;
+  btn.disabled = true;
+  try {
+    await api.put(`/admin/users/${userId}/role`, { role: newRole });
+    toast(`เปลี่ยน role เป็น ${label} สำเร็จ`, 'success');
+    const u = allUsersData.find(u => u.id === userId);
+    if (u) u.role = newRole;
+    renderUsersTable(allUsersData);
+  } catch(e) {
+    toast(e.message, 'error');
+    btn.disabled = false;
+  }
+}
+
+// ── Admin Comments ───────────────────────────
+async function loadAdminComments() {
+  if (allCommentsData.length) { renderCommentsTable(allCommentsData); return; }
+  try {
+    const data = await api.get('/admin/comments');
+    allCommentsData = Array.isArray(data) ? data : [];
+    renderCommentsTable(allCommentsData);
+  } catch(e) {
+    toast('โหลด comments ไม่ได้: ' + e.message, 'error');
+  }
+}
+
+function renderCommentsTable(comments) {
+  const tb = document.getElementById('commentsTableBody');
+  if (!comments.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);">ไม่มีความคิดเห็น</td></tr>`;
+    return;
+  }
+  tb.innerHTML = comments.map(c => `
+    <tr>
+      <td style="color:var(--text-muted);font-size:12px;">${c.id}</td>
+      <td style="font-size:13px;max-width:200px;word-break:break-word;">${escHtml(c.content?.substring(0,80))}${c.content?.length > 80 ? '...' : ''}</td>
+      <td style="font-size:13px;">${escHtml(c.username)}</td>
+      <td><a href="post.html?id=${c.post_id}" style="color:var(--primary);font-size:13px;">${escHtml((c.post_title||'').substring(0,30))}</a></td>
+      <td style="font-size:12px;color:var(--text-muted);">${formatDate(c.created_at)}</td>
+      <td>
+        <button onclick="adminDeleteComment(${c.id}, this)" style="padding:4px 8px;font-size:12px;background:#fef2f2;color:var(--danger);border-radius:6px;border:none;cursor:pointer;"><i class="bi bi-trash3"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+function filterComments(q) {
+  const filtered = allCommentsData.filter(c =>
+    c.content?.toLowerCase().includes(q.toLowerCase()) ||
+    c.username?.toLowerCase().includes(q.toLowerCase())
+  );
+  renderCommentsTable(filtered);
+}
+
+async function adminDeleteComment(id, btn) {
+  if (!confirm('ต้องการลบความคิดเห็นนี้?')) return;
+  btn.disabled = true;
+  try {
+    await api.delete(`/admin/comments/${id}`);
+    allCommentsData = allCommentsData.filter(c => c.id !== id);
+    renderCommentsTable(allCommentsData);
+    toast('ลบความคิดเห็นสำเร็จ', 'success');
+  } catch(e) {
+    toast(e.message, 'error');
+    btn.disabled = false;
+  }
+}
+
+// ── Charts ───────────────────────────────────
+let chartsRendered = false;
+function renderCharts() {
+  if (chartsRendered) return;
+  chartsRendered = true;
+
+  // Pie chart — posts / comments / likes ratio
+  const posts   = parseInt(document.getElementById('statPosts').textContent)   || 0;
+  const comments = parseInt(document.getElementById('statComments').textContent) || 0;
+  const likes   = parseInt(document.getElementById('statLikes').textContent)   || 0;
+
+  new Chart(document.getElementById('chartPie'), {
+    type: 'doughnut',
+    data: {
+      labels: ['โพสต์', 'ความคิดเห็น', 'Likes'],
+      datasets: [{
+        data: [posts, comments, likes],
+        backgroundColor: ['#6366f1','#059669','#e11d48'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text') || '#333' } } },
+      cutout: '65%'
+    }
+  });
+
+  // Bar chart — top 5 posts by likes
+  const top5 = [...allPostsData].sort((a,b) => (b.like_count||0) - (a.like_count||0)).slice(0,5);
+  new Chart(document.getElementById('chartBar'), {
+    type: 'bar',
+    data: {
+      labels: top5.map(p => p.title?.substring(0,20) + (p.title?.length > 20 ? '…' : '')),
+      datasets: [{
+        label: 'Likes',
+        data: top5.map(p => p.like_count || 0),
+        backgroundColor: '#6366f1',
+        borderRadius: 8,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { ticks: { color: '#888' } }
+      }
+    }
+  });
+}
+
+// ── Export CSV ───────────────────────────────
+function exportCSV(type) {
+  let rows, filename;
+  if (type === 'posts') {
+    rows = [['ID','หัวข้อ','ผู้เขียน','หมวดหมู่','Likes','ความคิดเห็น','วันที่']];
+    allPostsData.forEach(p => rows.push([p.id, p.title, p.username, p.category_name||'', p.like_count||0, p.comment_count||0, formatDate(p.created_at)]));
+    filename = 'posts.csv';
+  } else if (type === 'users') {
+    rows = [['ID','ชื่อผู้ใช้','อีเมล','Role','สมัครเมื่อ']];
+    allUsersData.forEach(u => rows.push([u.id, u.username, u.email, u.role, formatDate(u.created_at)]));
+    filename = 'users.csv';
+  } else if (type === 'comments') {
+    rows = [['ID','เนื้อหา','ผู้เขียน','โพสต์','วันที่']];
+    allCommentsData.forEach(c => rows.push([c.id, c.content, c.username, c.post_title||'', formatDate(c.created_at)]));
+    filename = 'comments.csv';
+  }
+  const bom = '﻿';
+  const csv = bom + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = filename;
+  a.click();
 }
 
 loadStats();

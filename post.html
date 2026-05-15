@@ -230,7 +230,7 @@ function renderPost(post) {
   const user = api.getUser();
   const isOwner = user && (user.id === post.user_id || user.role === 'admin');
   const catColor = post.category_color || '#6366f1';
-  const imgUrl = post.image ? (post.image.startsWith('http') ? post.image : 'https://webboard-project-production.up.railway.app' + post.image) : null;
+  const imgUrl = post.image ? (post.image.startsWith('http') ? post.image : 'https://webboard-project.onrender.com' + post.image) : null;
 
   document.getElementById('postContent').innerHTML = `
     <div class="card">
@@ -286,9 +286,19 @@ function renderComments(comments) {
         <span class="comment-author">${escHtml(c.username)}</span>
         <span class="comment-time">${timeAgo(c.created_at)}</span>
         ${user && (user.id === c.user_id || user.role === 'admin') ? `
-          <button class="comment-delete" onclick="deleteComment(${c.id})" title="ลบ"><i class="bi bi-trash3"></i></button>` : ''}
+          <div style="margin-left:auto; display:flex; gap:4px;">
+            ${user.id === c.user_id ? `<button class="comment-delete" onclick="editComment(${c.id}, this)" title="แก้ไข" style="color:var(--primary);"><i class="bi bi-pencil"></i></button>` : ''}
+            <button class="comment-delete" onclick="deleteComment(${c.id})" title="ลบ"><i class="bi bi-trash3"></i></button>
+          </div>` : ''}
       </div>
-      <p class="comment-body">${escHtml(c.content)}</p>
+      <p class="comment-body" id="comment-text-${c.id}">${escHtml(c.content)}</p>
+      <div id="comment-edit-${c.id}" style="display:none; margin-top:0.5rem;">
+        <textarea class="form-control" id="comment-edit-input-${c.id}" style="min-height:60px; font-size:13px; margin-bottom:6px;">${c.content}</textarea>
+        <div style="display:flex; gap:6px; justify-content:flex-end;">
+          <button class="btn-secondary" style="padding:5px 12px; font-size:12px;" onclick="cancelEdit(${c.id})">ยกเลิก</button>
+          <button class="btn-primary-sm" onclick="saveEdit(${c.id})"><i class="bi bi-check2"></i> บันทึก</button>
+        </div>
+      </div>
     </div>`).join('');
 }
 
@@ -320,6 +330,27 @@ async function deleteComment(commentId) {
     await api.delete(`/comments/${commentId}`);
     document.getElementById(`comment-${commentId}`)?.remove();
     toast('ลบความคิดเห็นสำเร็จ', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function editComment(commentId, btn) {
+  document.getElementById(`comment-text-${commentId}`).style.display = 'none';
+  document.getElementById(`comment-edit-${commentId}`).style.display = 'block';
+}
+
+function cancelEdit(commentId) {
+  document.getElementById(`comment-text-${commentId}`).style.display = 'block';
+  document.getElementById(`comment-edit-${commentId}`).style.display = 'none';
+}
+
+async function saveEdit(commentId) {
+  const content = document.getElementById(`comment-edit-input-${commentId}`).value.trim();
+  if (!content) { toast('กรุณากรอกเนื้อหา', 'error'); return; }
+  try {
+    await api.put(`/comments/${commentId}`, { content });
+    document.getElementById(`comment-text-${commentId}`).innerHTML = escHtml(content);
+    cancelEdit(commentId);
+    toast('แก้ไขความคิดเห็นสำเร็จ', 'success');
   } catch(e) { toast(e.message, 'error'); }
 }
 

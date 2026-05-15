@@ -53,9 +53,14 @@
     </div>
 
     <!-- My Posts -->
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
-      <h3 style="font-size:1rem; font-weight:700;"><i class="bi bi-grid-3x3-gap"></i> โพสต์ของฉัน</h3>
-      <button class="btn-primary-sm" onclick="window.location.href='create-post.html'">
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">
+      <button class="filter-tag active" id="tabPosts" onclick="switchTab('posts')">
+        <i class="bi bi-grid-3x3-gap"></i> โพสต์ของฉัน
+      </button>
+      <button class="filter-tag" id="tabBookmarks" onclick="switchTab('bookmarks')">
+        <i class="bi bi-bookmark"></i> ที่บันทึกไว้
+      </button>
+      <button class="btn-primary-sm" onclick="window.location.href='create-post.html'" style="margin-left:auto;">
         <i class="bi bi-plus"></i> สร้างโพสต์ใหม่
       </button>
     </div>
@@ -135,8 +140,8 @@ function renderProfile() {
 
 async function loadMyPosts() {
   try {
-    const data = await api.get(`/posts?limit=100`);
-    const posts = (data.posts || []).filter(p => p.user_id === user?.id);
+    const data = await api.get(`/posts?user_id=${user?.id}&limit=100`);
+    const posts = data.posts || [];
 
     // Stats
     document.getElementById('statPosts').textContent = posts.length;
@@ -163,7 +168,7 @@ async function loadMyPosts() {
               <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})" style="padding:4px 10px; font-size:12px;"><i class="bi bi-trash"></i></button>
             </div>
           </div>
-          ${post.image ? `<img src="https://webboard-project-production.up.railway.app${post.image}" style="width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-bottom:0.5rem;">` : ''}
+          ${post.image ? `<img src="${post.image}" style="width:100%; max-height:160px; object-fit:cover; border-radius:8px; margin-bottom:0.5rem;">` : ''}
           <h3 style="font-size:15px; font-weight:700; margin-bottom:0.35rem;">${escHtml(post.title)}</h3>
           <p style="font-size:13px; color:var(--text-muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escHtml(post.content)}</p>
           <div style="display:flex; gap:1rem; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
@@ -201,6 +206,44 @@ function toggleDark() {
 })();
 
 renderNavbar();
+function switchTab(tab) {
+  document.getElementById('tabPosts').classList.toggle('active', tab === 'posts');
+  document.getElementById('tabBookmarks').classList.toggle('active', tab === 'bookmarks');
+  if (tab === 'posts') loadMyPosts();
+  else loadBookmarks();
+}
+
+async function loadBookmarks() {
+  const el = document.getElementById('myPostList');
+  el.innerHTML = '<div class="loading-wrap"><div class="spinner"></div><span>กำลังโหลด...</span></div>';
+  try {
+    const data = await api.getBookmarks();
+    const posts = data.posts || [];
+    if (!posts.length) {
+      el.innerHTML = `<div class="empty-state"><i class="bi bi-bookmark"></i><p>ยังไม่มีโพสต์ที่บันทึกไว้</p></div>`;
+      return;
+    }
+    el.innerHTML = posts.map(post => `
+      <div class="card" style="margin-bottom:0.75rem; cursor:pointer;" onclick="window.location.href='post.html?id=${post.id}'">
+        <div class="card-body" style="padding:1.25rem;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.5rem; flex-wrap:wrap;">
+            <span style="font-size:12px; color:var(--text-muted);">${timeAgo(post.created_at)}</span>
+            ${post.category_name ? `<span class="category-badge" style="background:${post.category_color || '#6366f1'}20; color:${post.category_color || '#6366f1'};">${post.category_name}</span>` : ''}
+          </div>
+          <h3 style="font-size:15px; font-weight:700; margin-bottom:0.35rem;">${escHtml(post.title)}</h3>
+          <p style="font-size:13px; color:var(--text-muted);">${escHtml(post.content?.slice(0,120))}...</p>
+          <div style="display:flex; gap:1rem; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border);">
+            <span class="post-stat"><i class="bi bi-heart"></i> ${post.like_count || 0}</span>
+            <span class="post-stat"><i class="bi bi-chat"></i> ${post.comment_count || 0}</span>
+            <span class="post-stat"><i class="bi bi-eye"></i> ${post.views || 0}</span>
+            <span class="post-stat" style="color:var(--text-muted);">โดย ${escHtml(post.username)}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-danger">โหลดไม่สำเร็จ</div>`;
+  }
+}
 renderProfile();
 loadMyPosts();
 </script>
