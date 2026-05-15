@@ -6,6 +6,125 @@
   <title>WebBoard — หน้าหลัก</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* ── Micro-interaction: Like Heart Pop ── */
+    @keyframes heartPop {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(1.45); }
+      55%  { transform: scale(0.88); }
+      75%  { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+    @keyframes heartFloat {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-36px) scale(0.7); }
+    }
+    .like-btn.pop i {
+      animation: heartPop 0.42s cubic-bezier(0.4,0,0.2,1);
+    }
+    .heart-float {
+      position: absolute;
+      pointer-events: none;
+      font-size: 18px;
+      color: #e11d48;
+      animation: heartFloat 0.55s ease-out forwards;
+    }
+
+    /* ── Hover card lift (extra depth) ── */
+    .post-card {
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1),
+                  box-shadow 0.28s cubic-bezier(0.4,0,0.2,1),
+                  border-color 0.28s ease;
+      will-change: transform, box-shadow;
+    }
+    .post-card:hover {
+      transform: translateY(-5px) scale(1.012);
+      box-shadow: 0 16px 40px rgba(59,130,246,0.18), 0 4px 12px rgba(30,50,100,0.10);
+      border-color: rgba(99,102,241,0.35) !important;
+    }
+
+    /* ── Comment bounce ── */
+    @keyframes commentBounce {
+      0%   { opacity: 0; transform: translateY(10px) scale(0.95); }
+      60%  { transform: translateY(-3px) scale(1.02); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .comment-count-pop {
+      animation: commentBounce 0.35s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    /* ── Skeleton shimmer override for post list ── */
+    .sk-post {
+      background: var(--surface);
+      border: var(--glass-border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      backdrop-filter: var(--glass-blur);
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .sk-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    /* ── Page-in stagger for post cards ── */
+    @keyframes cardStagger {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .post-card-wrap {
+      animation: cardStagger 0.4s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    /* ── Notification badge pulse ── */
+    @keyframes badgePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(225,29,72,0.6); }
+      50%       { box-shadow: 0 0 0 5px rgba(225,29,72,0); }
+    }
+    #notifBadge[style*="flex"] {
+      animation: badgePulse 1.5s infinite;
+    }
+
+    /* ── Smooth avatar hover ── */
+    .avatar-sm {
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+    .avatar-sm:hover {
+      transform: scale(1.10);
+      box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+    }
+
+    /* ── Filter tag ripple ── */
+    .filter-tag { position: relative; overflow: hidden; }
+    .filter-tag::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.18);
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .filter-tag:active::after { opacity: 1; }
+
+    /* ── Sidebar item slide ── */
+    .sidebar-item {
+      transition: background 0.2s, color 0.2s, transform 0.2s, padding-left 0.2s;
+    }
+    .sidebar-item:hover { padding-left: 1.25rem; }
+
+    /* ── Trending item hover glow ── */
+    .trending-item:hover .trending-num {
+      color: var(--primary);
+      transition: color 0.2s;
+    }
+
+    /* ── Load more button spin ── */
+    #loadMoreBtn.loading i { animation: spin 0.7s linear infinite; }
+  </style>
 </head>
 <body>
 
@@ -20,9 +139,9 @@
   </a>
   <div class="navbar-search">
     <i class="bi bi-search"></i>
-    <input type="text" id="searchInput" placeholder="ค้นหาโพสต์..." />
+    <input type="text" id="searchInput" placeholder="ค้นหาโพสต์..." autocomplete="off" />
   </div>
-  <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">
+  <button class="dark-toggle" id="darkToggle" onclick="toggleDark()" title="เปลี่ยนธีม">
     <i class="bi bi-moon-fill" id="darkIcon"></i>
   </button>
   <div class="navbar-actions" id="navbarActions">
@@ -80,12 +199,54 @@
       <button class="filter-tag" id="sortLikes" onclick="setSort('likes')">ยอดนิยม</button>
     </div>
 
-    <!-- Post list -->
-    <div id="postList">
-      <div class="loading-wrap">
-        <div class="spinner"></div>
-        <span>กำลังโหลด...</span>
+   <!-- Post list -->
+<div id="postList">
+  <!-- Skeleton loading -->
+  <div id="skeletonLoader">
+    <div class="sk-post">
+      <div class="sk-row">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line short" style="flex:1;height:12px;"></div>
       </div>
+      <div class="skeleton skeleton-title" style="margin-bottom:8px;"></div>
+      <div class="skeleton skeleton-line full"></div>
+      <div class="skeleton skeleton-line medium"></div>
+      <div class="sk-row" style="margin-top:10px;gap:14px;">
+        <div class="skeleton skeleton-line" style="width:48px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+      </div>
+    </div>
+    <div class="sk-post">
+      <div class="sk-row">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line short" style="flex:1;height:12px;"></div>
+      </div>
+      <div class="skeleton skeleton-title" style="margin-bottom:8px;"></div>
+      <div class="skeleton skeleton-line full"></div>
+      <div class="skeleton skeleton-line medium"></div>
+      <div class="sk-row" style="margin-top:10px;gap:14px;">
+        <div class="skeleton skeleton-line" style="width:48px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+      </div>
+    </div>
+    <div class="sk-post">
+      <div class="sk-row">
+        <div class="skeleton skeleton-avatar"></div>
+        <div class="skeleton skeleton-line short" style="flex:1;height:12px;"></div>
+      </div>
+      <div class="skeleton skeleton-title" style="margin-bottom:8px;"></div>
+      <div class="skeleton skeleton-line full"></div>
+      <div class="skeleton skeleton-line medium"></div>
+      <div class="sk-row" style="margin-top:10px;gap:14px;">
+        <div class="skeleton skeleton-line" style="width:48px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+        <div class="skeleton skeleton-line" style="width:40px;height:12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
     </div>
 
     <div id="loadMoreWrap" style="display:none; text-align:center; margin-top:1.5rem;">
@@ -100,7 +261,9 @@
     <div class="card" style="margin-bottom:1rem;">
       <div class="card-header-custom"><i class="bi bi-fire" style="color:#f97316"></i> Trending</div>
       <div class="card-body" id="trendingWidget">
-        <div style="color:var(--text-muted); font-size:13px;">กำลังโหลด...</div>
+        <div class="skeleton skeleton-line full" style="margin-bottom:8px;height:13px;"></div>
+        <div class="skeleton skeleton-line medium" style="margin-bottom:8px;height:13px;"></div>
+        <div class="skeleton skeleton-line full" style="margin-bottom:8px;height:13px;"></div>
       </div>
     </div>
     <div class="card" id="statsCard" style="display:none;">
@@ -112,20 +275,26 @@
 
 <script src="assets/js/api.js"></script>
 <script>
-let allPosts = [];
+/* ═══════════════════════════════════════
+   State
+═══════════════════════════════════════ */
+let allPosts      = [];
 let filteredPosts = [];
 let displayedCount = 0;
-const PAGE_SIZE = 10;
+const PAGE_SIZE    = 10;
 let currentCategory = null;
-let currentSort = 'latest';
-let searchTimer = null;
-let categories = [];
+let currentSort     = 'latest';
+let searchTimer     = null;
+let categories      = [];
 
-function toast(msg, type='') {
+/* ═══════════════════════════════════════
+   Utility
+═══════════════════════════════════════ */
+function toast(msg, type = '') {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
   t.className = 'toast ' + type;
-  t.innerHTML = `<i class="bi bi-${type==='success'?'check-circle':type==='error'?'x-circle':'info-circle'}"></i> ${msg}`;
+  t.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i> ${msg}`;
   c.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
@@ -142,10 +311,24 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('th-TH');
 }
 
-function initials(name) {
-  return name ? name.slice(0, 2).toUpperCase() : '??';
+function initials(name) { return name ? name.slice(0, 2).toUpperCase() : '??'; }
+
+function stringToColor(str) {
+  if (!str) return '#2563eb';
+  const palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#dc2626','#db2777'];
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
 }
 
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ═══════════════════════════════════════
+   Navbar
+═══════════════════════════════════════ */
 function renderNavbar() {
   const el = document.getElementById('navbarActions');
   if (api.isLoggedIn()) {
@@ -158,16 +341,16 @@ function renderNavbar() {
           <i class="bi bi-bell-fill"></i>
           <span id="notifBadge" style="display:none; position:absolute; top:-4px; right:-4px; background:#e11d48; color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1;"></span>
         </button>
-        <div id="notifMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-md); width:300px; z-index:300; overflow:hidden;">
+        <div id="notifMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-md); width:300px; z-index:300; overflow:hidden; backdrop-filter:var(--glass-blur);">
           <div style="padding:10px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:13px; font-weight:700;">การแจ้งเตือน</span>
-            <button onclick="markAllRead()" style="font-size:12px; color:var(--primary); background:none; border:none; cursor:pointer;">อ่านทั้งหมด</button>
+            <a href="notifications.html" style="font-size:12px; color:var(--primary); text-decoration:none; font-weight:600;">ดูทั้งหมด &rarr;</a>
           </div>
           <div id="notifList" style="max-height:320px; overflow-y:auto; padding:4px 0;"></div>
         </div>
       </div>
       <div style="position:relative;">
-        <div class="avatar-sm" onclick="toggleUserMenu()" id="userAvatar">${initials(user?.username)}</div>
+        <div class="avatar-sm" onclick="toggleUserMenu()" id="userAvatar" style="cursor:pointer;">${initials(user?.username)}</div>
         <div class="dropdown-menu-custom" id="userMenu" style="display:none;">
           <div style="padding:10px 14px; border-bottom:1px solid var(--border);">
             <p style="font-size:13px; font-weight:700;">${user?.username}</p>
@@ -216,10 +399,13 @@ function renderProfileWidget(user) {
     </button>`;
 }
 
+/* ═══════════════════════════════════════
+   Categories
+═══════════════════════════════════════ */
 async function loadCategories() {
   try {
     const data = await api.get('/categories');
-    categories = data.categories || [];
+    categories = Array.isArray(data) ? data : (data.categories || []);
     renderCategorySidebar();
     renderFilterTags();
   } catch {}
@@ -227,7 +413,6 @@ async function loadCategories() {
 
 function renderCategorySidebar() {
   const el = document.getElementById('categorySidebar');
-  const colors = { '#6366f1': '#6366f1', '#0ea5e9': '#0ea5e9', '#10b981': '#10b981', '#f59e0b': '#f59e0b', '#ef4444': '#ef4444', '#f97316': '#f97316' };
   el.innerHTML = categories.map(c => `
     <button class="sidebar-item${currentCategory === c.id ? ' active' : ''}" onclick="setFilter(${c.id}, '${c.name}')">
       <span class="category-dot" style="background:${c.color || '#6366f1'}"></span>
@@ -247,6 +432,7 @@ function renderFilterTags() {
 function setFilter(catId, catName = null) {
   currentCategory = catId;
   document.getElementById('feedTitle').textContent = catName || 'โพสต์ทั้งหมด';
+  document.getElementById('feedSub').textContent = catName ? `หมวดหมู่: ${catName}` : 'อ่าน แชร์ และแลกเปลี่ยนความคิดเห็น';
   renderCategorySidebar();
   renderFilterTags();
   applyFilter();
@@ -257,6 +443,35 @@ function setSort(type) {
   document.getElementById('sortLatest').classList.toggle('active', type === 'latest');
   document.getElementById('sortLikes').classList.toggle('active', type === 'likes');
   applyFilter();
+}
+
+/* ═══════════════════════════════════════
+   Posts
+═══════════════════════════════════════ */
+async function loadPosts() {
+  try {
+    const data = await api.get('/posts');
+    allPosts = data.posts || [];
+
+    // โหลด bookmarks ของ user มาเก็บไว้
+    if (api.isLoggedIn()) {
+      try {
+        const bm = await api.getBookmarks();
+        const bmIds = new Set((bm.posts || []).map(p => p.id));
+        allPosts.forEach(p => p.user_bookmarked = bmIds.has(p.id));
+      } catch {}
+    }
+
+    const sk = document.getElementById('skeletonLoader');
+    if (sk) sk.remove();
+    await loadTrendingWidget();
+    applyFilter();
+  } catch(e) {
+    const sk = document.getElementById('skeletonLoader');
+    if (sk) sk.remove();
+    document.getElementById('postList').innerHTML = `
+      <div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> ไม่สามารถโหลดโพสต์ได้: ${e.message}</div>`;
+  }
 }
 
 function applyFilter() {
@@ -271,11 +486,11 @@ function applyFilter() {
 
 function renderMore() {
   const slice = filteredPosts.slice(displayedCount, displayedCount + PAGE_SIZE);
-  slice.forEach(p => appendPostCard(p));
+  slice.forEach((p, i) => appendPostCard(p, displayedCount + i));
   displayedCount += slice.length;
   const lmWrap = document.getElementById('loadMoreWrap');
   lmWrap.style.display = displayedCount < filteredPosts.length ? 'block' : 'none';
-  if (filteredPosts.length === 0 && displayedCount === 0) {
+  if (filteredPosts.length === 0) {
     document.getElementById('postList').innerHTML = `
       <div class="empty-state">
         <i class="bi bi-inbox"></i>
@@ -284,65 +499,114 @@ function renderMore() {
   }
 }
 
-function loadMore() { renderMore(); }
+function loadMore() {
+  const btn = document.getElementById('loadMoreBtn');
+  btn.classList.add('loading');
+  btn.querySelector('i').className = 'bi bi-arrow-clockwise';
+  setTimeout(() => {
+    renderMore();
+    btn.classList.remove('loading');
+    btn.querySelector('i').className = 'bi bi-arrow-down-circle';
+  }, 300);
+}
 
-function appendPostCard(post) {
+function appendPostCard(post, index = 0) {
   const el = document.getElementById('postList');
   const liked = post.user_liked;
   const cat = categories.find(c => c.id === post.category_id);
   const catColor = cat?.color || '#6366f1';
-  const card = document.createElement('div');
-  card.style.marginBottom = '0.75rem';
-  card.innerHTML = `
-    <div class="post-card" onclick="window.location.href='post.html?id=${post.id}'" style="cursor:pointer;">
+
+  const wrap = document.createElement('div');
+  wrap.className = 'post-card-wrap';
+  wrap.style.animationDelay = `${Math.min(index, 6) * 60}ms`;
+  wrap.style.marginBottom = '0.75rem';
+
+  wrap.innerHTML = `
+    <div class="post-card" onclick="window.location.href='post.html?id=${post.id}'" style="cursor:pointer; position:relative;">
       <div class="post-meta">
         <div class="avatar-xs" style="background:${stringToColor(post.username)}">${initials(post.username)}</div>
-        <span class="post-author">${post.username}</span>
+        <span class="post-author">${escHtml(post.username)}</span>
         <span class="post-time">${timeAgo(post.created_at)}</span>
         ${cat ? `<span class="category-badge" style="background:${catColor}20; color:${catColor};">${cat.name}</span>` : ''}
       </div>
       <h2 class="post-title">${escHtml(post.title)}</h2>
-      ${post.image ? `<div style="margin:0.5rem 0; border-radius:8px; overflow:hidden; max-height:200px;"><img src="${post.image.startsWith('http') ? post.image : 'https://webboard-project-production.up.railway.app' + post.image}" alt="" style="width:100%; max-height:200px; object-fit:cover; display:block; border-radius:8px;" onclick="event.stopPropagation(); window.location.href='post.html?id=${post.id}'"></div>` : ''}
+      ${post.image ? `
+        <div style="margin:0.5rem 0; border-radius:10px; overflow:hidden; max-height:200px;">
+          <img src="${post.image.startsWith('http') ? post.image : 'https://webboard-project-production.up.railway.app' + post.image}"
+               alt="" style="width:100%; max-height:200px; object-fit:cover; display:block; transition:transform 0.35s ease;"
+               onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"
+               onclick="event.stopPropagation(); window.location.href='post.html?id=${post.id}'">
+        </div>` : ''}
       <p class="post-excerpt">${escHtml(post.content)}</p>
       <div class="post-footer">
-        <button class="like-btn${liked ? ' liked' : ''}" onclick="event.stopPropagation(); toggleLike(${post.id}, this)" data-liked="${liked ? '1' : '0'}" data-count="${post.like_count || post.likes || 0}">
+        <button class="like-btn${liked ? ' liked' : ''}"
+          onclick="event.stopPropagation(); toggleLike(${post.id}, this)"
+          data-liked="${liked ? '1' : '0'}"
+          data-count="${post.like_count || post.likes || 0}"
+          style="position:relative;">
           <i class="bi bi-heart${liked ? '-fill' : ''}"></i>
           <span class="like-count">${post.like_count || post.likes || 0}</span>
         </button>
         <span class="post-stat"><i class="bi bi-chat"></i> ${post.comment_count || 0}</span>
         <span class="post-stat"><i class="bi bi-eye"></i> ${post.views || 0}</span>
+       ${api.isLoggedIn() ? `
+<button class="like-btn${post.user_bookmarked ? ' liked' : ''}" id="bm-${post.id}"
+  onclick="event.stopPropagation(); toggleBookmark(${post.id}, this)"
+  style="margin-left:auto;">
+  <i class="bi bi-bookmark${post.user_bookmarked ? '-fill' : ''}"></i>
+</button>` : ''}
       </div>
     </div>`;
-  el.appendChild(card);
+  el.appendChild(wrap);
 }
 
-function stringToColor(str) {
-  if (!str) return '#2563eb';
-  const palette = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#dc2626','#db2777'];
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
-  return palette[h % palette.length];
-}
-
-function escHtml(s) {
-  if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
+/* ═══════════════════════════════════════
+   Like with micro-interaction
+═══════════════════════════════════════ */
 async function toggleLike(postId, btn) {
   if (!api.isLoggedIn()) { toast('กรุณาเข้าสู่ระบบก่อน', 'error'); return; }
   try {
+    // Heart pop animation
+    btn.querySelector('i').classList.remove('pop');
+    void btn.querySelector('i').offsetWidth; // reflow
+    btn.querySelector('i').classList.add('pop');
+
     const data = await api.post(`/posts/${postId}/like`, {});
     const isLiked = data.liked;
+
     btn.dataset.liked = isLiked ? '1' : '0';
     btn.classList.toggle('liked', isLiked);
-    btn.querySelector('i').className = `bi bi-heart${isLiked ? '-fill' : ''}`;
+    btn.querySelector('i').className = `bi bi-heart${isLiked ? '-fill' : ''} pop`;
     btn.querySelector('.like-count').textContent = data.like_count;
+
+    // Float heart
+    if (isLiked) {
+      const hf = document.createElement('span');
+      hf.className = 'heart-float';
+      hf.textContent = '♥';
+      hf.style.left = (btn.offsetLeft + 4) + 'px';
+      hf.style.top  = (btn.offsetTop  - 4) + 'px';
+      btn.parentElement.appendChild(hf);
+      setTimeout(() => hf.remove(), 560);
+    }
+
     const post = allPosts.find(p => p.id === postId);
     if (post) { post.like_count = data.like_count; post.user_liked = isLiked; }
   } catch(e) { toast(e.message, 'error'); }
 }
+async function toggleBookmark(postId, btn) {
+  try {
+    const data = await api.bookmark(postId);
+    const icon = btn.querySelector('i');
+    icon.className = data.bookmarked ? 'bi bi-bookmark-fill' : 'bi bi-bookmark';
+    btn.classList.toggle('liked', data.bookmarked);
+    toast(data.bookmarked ? 'บันทึกแล้ว ✨' : 'ยกเลิกบันทึกแล้ว', data.bookmarked ? 'success' : '');
+  } catch(e) { toast(e.message, 'error'); }
+}
 
+/* ═══════════════════════════════════════
+   Trending
+═══════════════════════════════════════ */
 async function loadTrending() {
   document.getElementById('feedTitle').textContent = '🔥 Trending';
   document.getElementById('feedSub').textContent = 'โพสต์ยอดนิยม';
@@ -350,22 +614,11 @@ async function loadTrending() {
   renderCategorySidebar();
   try {
     const data = await api.get('/posts/trending');
-    filteredPosts = data.posts || [];
+    filteredPosts = Array.isArray(data) ? data : (data.posts || []);
     displayedCount = 0;
     document.getElementById('postList').innerHTML = '';
     renderMore();
   } catch {}
-}
-
-async function loadPosts() {
-  try {
-    const data = await api.get('/posts');
-    allPosts = data.posts || [];
-    await loadTrendingWidget();
-    applyFilter();
-  } catch(e) {
-    document.getElementById('postList').innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> ไม่สามารถโหลดโพสต์ได้: ${e.message}</div>`;
-  }
 }
 
 async function loadTrendingWidget() {
@@ -373,41 +626,45 @@ async function loadTrendingWidget() {
     const data = await api.get('/posts/trending');
     const tw = document.getElementById('trendingWidget');
     const posts = data.posts?.slice(0, 5) || [];
-    if (!posts.length) { tw.innerHTML = '<p style="font-size:13px; color:var(--text-muted)">ยังไม่มีข้อมูล</p>'; return; }
+    if (!posts.length) {
+      tw.innerHTML = '<p style="font-size:13px; color:var(--text-muted)">ยังไม่มีข้อมูล</p>';
+      return;
+    }
     tw.innerHTML = posts.map((p, i) => `
       <div class="trending-item" onclick="window.location.href='post.html?id=${p.id}'">
         <span class="trending-num">${i + 1}</span>
         <div>
           <p class="trending-title">${escHtml(p.title)}</p>
-          <p class="trending-stat"><i class="bi bi-heart" style="font-size:11px"></i> ${p.like_count || 0} likes · ${p.username}</p>
+          <p class="trending-stat"><i class="bi bi-heart" style="font-size:11px"></i> ${p.like_count || 0} likes · ${escHtml(p.username)}</p>
         </div>
       </div>`).join('');
   } catch {}
 }
 
-// Search
+/* ═══════════════════════════════════════
+   Search
+═══════════════════════════════════════ */
 document.getElementById('searchInput').addEventListener('input', function() {
   clearTimeout(searchTimer);
   const q = this.value.trim().toLowerCase();
   searchTimer = setTimeout(() => {
     if (!q) { applyFilter(); return; }
     filteredPosts = allPosts.filter(p =>
-      p.title?.toLowerCase().includes(q) || p.content?.toLowerCase().includes(q) || p.username?.toLowerCase().includes(q)
+      p.title?.toLowerCase().includes(q) ||
+      p.content?.toLowerCase().includes(q) ||
+      p.username?.toLowerCase().includes(q)
     );
     displayedCount = 0;
     document.getElementById('postList').innerHTML = '';
     document.getElementById('feedTitle').textContent = `ผลลัพธ์: "${q}"`;
+    document.getElementById('feedSub').textContent = `พบ ${filteredPosts.length} โพสต์`;
     renderMore();
   }, 300);
 });
 
-// Init
-renderNavbar();
-if (api.isLoggedIn()) loadNotifications();
-loadCategories();
-loadPosts();
-
-// Notifications
+/* ═══════════════════════════════════════
+   Notifications
+═══════════════════════════════════════ */
 async function loadNotifications() {
   if (!api.isLoggedIn()) return;
   try {
@@ -427,16 +684,18 @@ async function loadNotifications() {
       return;
     }
     list.innerHTML = data.notifications.map(n => `
-      <div onclick="window.location.href='post.html?id=${n.post_id}'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); background:${n.is_read ? 'transparent' : 'var(--primary-light)'}; display:flex; gap:10px; align-items:flex-start;">
+      <div onclick="window.location.href='post.html?id=${n.post_id}'"
+        style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); background:${n.is_read ? 'transparent' : 'var(--primary-light)'}; display:flex; gap:10px; align-items:flex-start; transition:background 0.2s;"
+        onmouseover="this.style.background='var(--primary-light)'" onmouseout="this.style.background='${n.is_read ? 'transparent' : 'var(--primary-light)'}'">
         <div style="width:32px; height:32px; border-radius:50%; background:${n.type === 'like' ? '#e11d48' : 'var(--primary)'}; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;">
           <i class="bi bi-${n.type === 'like' ? 'heart-fill' : 'chat-fill'}"></i>
         </div>
         <div>
-          <p style="font-size:13px; margin:0; color:var(--text);"><b>${n.from_username}</b> ${n.type === 'like' ? 'ถูกใจโพสต์' : 'แสดงความคิดเห็นใน'} "${n.post_title || 'โพสต์ของคุณ'}"</p>
+          <p style="font-size:13px; margin:0; color:var(--text);"><b>${escHtml(n.from_username)}</b> ${n.type === 'like' ? 'ถูกใจโพสต์' : 'แสดงความคิดเห็นใน'} "${escHtml(n.post_title || 'โพสต์ของคุณ')}"</p>
           <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0;">${timeAgo(n.created_at)}</p>
         </div>
       </div>`).join('');
-  } catch(e) {}
+  } catch {}
 }
 
 function toggleNotifMenu() {
@@ -452,16 +711,18 @@ async function markAllRead() {
     await api.put('/notifications/read-all', {});
     document.getElementById('notifBadge').style.display = 'none';
     loadNotifications();
-  } catch(e) {}
+  } catch {}
 }
 
 document.addEventListener('click', e => {
   const menu = document.getElementById('notifMenu');
-  const btn = document.getElementById('notifBtn');
+  const btn  = document.getElementById('notifBtn');
   if (menu && !menu.contains(e.target) && !btn?.contains(e.target)) menu.style.display = 'none';
 });
 
-// Dark Mode
+/* ═══════════════════════════════════════
+   Dark Mode
+═══════════════════════════════════════ */
 function toggleDark() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
@@ -471,8 +732,17 @@ function toggleDark() {
 (function() {
   const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', saved);
-  if (saved === 'dark') { const ic = document.getElementById('darkIcon'); if(ic) ic.className = 'bi bi-sun-fill'; }
+  const ic = document.getElementById('darkIcon');
+  if (saved === 'dark' && ic) ic.className = 'bi bi-sun-fill';
 })();
+
+/* ═══════════════════════════════════════
+   Init
+═══════════════════════════════════════ */
+renderNavbar();
+if (api.isLoggedIn()) loadNotifications();
+loadCategories();
+loadPosts();
 </script>
 </body>
 </html>
