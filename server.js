@@ -773,3 +773,8 @@ app.get("/api/bookmarks", verifyToken, (req, res) => {
         res.json({ posts: results });
     });
 });
+// Keep Render alive
+setInterval(() => {
+  fetch('https://webboard-project.onrender.com/')
+    .catch(() => {});
+}, 14 * 60 * 1000);
